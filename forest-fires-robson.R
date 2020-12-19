@@ -84,9 +84,12 @@ fires.raw <- fires.raw %>% rowwise() %>%
          latency_interv_ext = (extinction - firstInterv)/60,
          latency_alert_ext = (extinction - alert)/60)
 
+fires.raw <- as_tibble(fires.raw)
 df_status(fires.raw)
 
-#save(fires.raw, file = "fires.raw.RData")
+save(fires.raw, file = "fires.raw.RData")
 load("fires.raw.RData")
+
+
 
 
