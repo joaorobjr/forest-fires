@@ -1,0 +1,196 @@
+---
+title: "Forest Fires in Portugal - What Are The Causes?"
+subtitle: "Practical Assignment of Data Mining I"
+author: "By Robson Teixeira, Eduardo Rodrigues and Claudio Rocha"
+date: "M:CC -- FCUP, 10/01/2021"
+output:
+  html_document:
+    #df_print: paged
+    df_print: tibble
+    toc: yes
+    code_folding: "hide"
+    fig_caption: yes
+    includes:
+      in_header: header.html
+    number_sections: yes
+    theme: cerulean
+    toc_float: yes
+  html_notebook: 
+    code_folding: hide
+    df_print: default
+    number_sections: yes
+    toc: yes
+    toc_float: yes
+  pdf_document:
+    #citation_package: natbib
+    df_print: tibble
+    fig_caption: yes
+    fig_crop: no
+    fig_height: 5
+    fig_width: 7
+    number_sections: yes
+    toc: yes
+geometry:
+- top=25mm
+- bottom=25mm
+- left=25mm
+- right=20mm
+- heightrounded
+header-includes:
+  \usepackage{caption}
+  \usepackage{fancyhdr}
+  \usepackage{lmodern}
+  \usepackage[detect-all]{siunitx}
+highlight-style: pygments
+linkcolor: blue
+mainfont: Source Variable Pro
+fontsize: 12pt
+sansfont: Source Sans Pro
+documentclass: report
+urlcolor: blue
+references:
+- type: article-journal   
+  id: geosciences10020053
+  title: Mapping the Causes of Forest Fires in Portugal by Clustering Analysis
+  author:
+    - family: Meira Castro
+      given: Ana C.
+    - family: Nunes
+      given: Adélia 
+    - family: Sousa
+      given: António
+    - family: Lourenço
+      given: Luciano
+  publisher: Geosciences
+  issued:
+    year: 2020
+---
+
+```{r setup, include= F}
+library(dplyr)
+library(funModeling)
+library(stringr)
+library(chron)
+
+# turns off scientific notation; to turn it back on, use scipen= 0
+options(scipen= 999)
+
+
+fires.train.path = file("data/fires2015_train.csv")
+fires.test.path = file("data/fires2015_test.csv")
+
+fires.raw <- read.csv(fires.train.path, stringsAsFactors = FALSE, 
+                      na.strings = c("-", "","NA"), 
+                      encoding = "UTF-8")
+
+fires.test.raw <- read.csv(fires.test.path, stringsAsFactors = FALSE, 
+                           na.strings = c("-", "","NA"), 
+                           encoding = "UTF-8")
+
+```
+
+# Abstract {-}
+
+# Introduction
+
+# Problem Definition
+
+Forest fires are a very important issue that negatively affects climate change. Typically, the causes of forest fires are those oversights, accidents and negligence committed by individuals, intentional acts and natural causes. The latter is the root cause for only a minority of the fires.
+
+Their harmful impacts and effects on ecosystems can be major ones. Among them, we can mention the disappearance of native species, the increase in levels of carbon dioxide in the atmosphere, earth’s nutrients destroyed by the ashes, and the massive loss of wildlife.
+
+Data mining techniques can help in the prediction of the cause of the fire and, thus, better support the decision of taking preventive measures in order to avoid tragedy. In effect, this can play a major role in resource allocation, mitigation and recovery efforts.
+
+## Forest Fire Dataset
+
+The ICFN - Nature and Forest Conservation Institute has the record of the list of forest fires occurred in Portugal for several years. For each fire, there is information such as the site, the alert date/hour, the extinction date/hour, the affected area and the cause type. A classifications for causes types are presented in table \@ref(tab:cause_type).
+
+Table 1: (\#tab:cause_type) Classifications of causes of forest fires.
+
+Cause       |Description                                           
+------------|---------------------------------------------------------------------------------------------
+Unknown     | absence of suficient objective evidence to determine the cause of the ignition of fire
+Natural     | lightning generated in thunderstorms
+Negligence  | the misguided use of fire in activities such as burning trash, mass burning of agricultural and forest fuels, fun and leisure activities; failure to properly extinguish cigarettes by smokers; the dispersal and transport of incandescent particles from chimneys; etc.
+Intentional | incendiarism and arson, mostly resulting from behaviors and attitudes reacting to theconstraints of agroforestry management systems and to conflicts related to land use
+Rekindling  | reburning of an area over which a fire has previously passed, but where fuel has been left that is later ignited by latent heat, sparks, or embers
+
+
+The dataset used in this study was provided by ICFN, and it contains the data on reported forest fires during 2015 and its respective causes. The data are distributed in files:
+
+* **fires2015train.csv** --- the file contain the data of 7511 reported forest fires during 2015
+
+```{r echo= F}
+glimpse(fires.raw)
+```
+
+```{r echo= F}
+head(fires.raw)
+```
+
+```{r}
+df_status(fires.raw)
+```
+
+
+Table \@ref(tab:variables) describes all variables contained in the `fires2015train.csv` of the data set.
+Clearly, the type of some of variables is incorrect and inconvenient for analysis and that was taken care of in section \@ref(data-cleaning).
+
+Table: (\#tab:variables) List of variables present in the three original files from the Flixster data set.
+
+Variable    |Type        |Description                   |Tibble
+------------|------------|------------------------------|------
+age         |character   |Age of user                   |profiles
+date        |character   |Date in which user rated movie|ratings
+gender      |character   |User gender                   |profiles
+lastlogin   |integer     |Last login numerical tag      |profiles
+location    |integer     |Location identifier of user   |profiles
+memberfor   |character   |Member since date             |profiles
+movieid     |integer     |Movie unique identifier       |movies
+movieid     |integer     |Movie unique identifier       |ratings
+moviename   |character   |movie name                    |movies
+profileview |character   |Numerical tag of the user     |profiles
+rating      |double      |Rating of movie by user       |ratings
+userid      |integer     |User unique identifier        |profiles
+userid      |integer     |User unique identifier        |ratings
+
+# Data Preparation
+
+## Data Cleaning: 
+Identifying and correcting mistakes or errors in the data.
+
+```{r}
+
+```
+
+## Data Transforms
+Changing the scale or distribution of variables.
+
+```{r}
+
+```
+
+## Feature Engineering
+Deriving new variables from available data.
+
+```{r}
+
+```
+
+## Feature Selection
+Identifying those input variables that are most relevant to the task.
+```{r}
+
+```
+
+
+## Dimensionality Reduction
+Creating compact projections of the data.
+
+
+
+# Exploratory Data Analysis
+
+# Conclusions, Shortcomings and Future Work
+
+# Appendix
