@@ -102,14 +102,30 @@ fires.raw$month <- str_replace_all(fires.raw$month, "\\-", "")
 fires.raw$month = as.factor(fires.raw$month)
 
 #bar plot of forests fires during 2015
-ggplot(fires.raw, aes(x = month)) + geom_bar(fill = "red") + ggtitle("Distribution of forests fires across 2015")
+# july and august were the months with a great number of ocurrences
+ggplot(fires.raw, aes(x = month)) + geom_bar() + ggtitle("Distribution of forests fires across 2015")
 
 #bar plot of forests fires during 2015 by region
+#Entre Douro e Minho was the region with mores forests fires
 ggplot(fires.raw, aes(x = region)) +  theme(axis.text.x = element_text(angle = 90)) + geom_bar() + ggtitle("Distribution of forests fires by region")
 
 #bar plot of forests fires during 2015 by district
+#Porto was the district with more forests fires
 ggplot(fires.raw, aes(x = district)) +  theme(axis.text.x = element_text(angle = 90))+geom_bar() + ggtitle("Distribution of forests fires by district")
 
 #bar plot of forests fires during 2015 by causes
+# negligence was the big cause of the forests fires
 ggplot(fires.raw, aes(x = cause_type)) + geom_bar(color = "black", fill = "light blue") + ggtitle("Distribution of causes of fires")
 
+#bar plot of forests fires during 2015 by origin
+#firepit was the origin of the most forests fires
+ggplot(fires.raw, aes(x = origin)) + geom_bar(fill = "blue") + ggtitle("Distribution of forests fires by origin across 2015")
+
+#Relationship between district, month and causes
+ggplot(fires.raw, aes(x = district, y = month)) +  theme(axis.text.x = element_text(angle = 90)) + geom_point(aes(color = cause_type)) + ggtitle("Relationship between district, month and cause_type")
+
+#Relationship between region, month and causes
+ggplot(fires.raw, aes(x = region, y = month)) +  theme(axis.text.x = element_text(angle = 90)) + geom_point(aes(color = cause_type)) + ggtitle("Relationship between region and month")
+
+#Points of fires according latitude,longitude and region
+ggplot(fires.raw, aes(x = lat, y = lon)) +  theme(axis.text.x = element_text(angle = 90)) +  scale_x_discrete(labels = abbreviate) +  theme(axis.text.y = element_text(angle = 0)) +  scale_y_discrete(labels = abbreviate) + geom_point(aes(color = region)) + ggtitle("Points of fires according lat and lon")
