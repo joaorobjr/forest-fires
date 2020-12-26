@@ -1,12 +1,15 @@
-library(dplyr)
+library(tidyverse)
 library(funModeling)
-library(stringr)
-library(chron)
 library(measurements)
 library(lubridate)
+library(ggplot2)
+library('rnoaa')
+library(lubridate)
+library(devtools)
+options(noaakey = "mqEuOSuAUjyuGlTjVjxxCpzRlbrooRnr")
 
 #Load raw data --------------------------------------------------
-fires.raw = as_tibble(read.csv("C:/Users/edamr/Downloads/fires2015_train.csv",
+fires.raw = as_tibble(read.csv("C:/users/edamr/Downloads/fires2015_train.csv",
                                stringsAsFactors = FALSE, 
                                na.strings = c("-", "","NA"), 
                                encoding = "UTF-8"))
@@ -54,11 +57,10 @@ rm(df_temp)
 # Cleaning lat and lon variables and convert from GPS coodinate to decimals
 vec_clean <- c("''"="", "E-12"="", "E-11"="", "E-02"="", ","=".", "º"=" ", "'"=" ", ":"=" ")
 fires.raw$lat <- conv_unit(str_replace_all(str_trim(fires.raw$lat), vec_clean), "deg_min_sec", "dec_deg")
+# Ocorre um warning ao executar essa linha
+fires.raw$lon <- conv_unit(str_replace_all(str_trim(fires.raw$lon, side = "both"), vec_clean), "deg_min_sec", "dec_deg")
 # Workaround
 fires.raw$lon[7511] <- conv_unit("8 34 21.5868000000013", "deg_min_sec", "dec_deg")
-# Ocorre um warning ao executar essa linha
-fires.raw$lon <- conv_unit(str_replace_all(str_trim(fires.raw$lon), vec_clean), "deg_min_sec", "dec_deg")
-
 
 # Data imputation: firstInterv_date and firstInterv_hour
 # firstInterv_date = (if is.na(firstInterv_date) and !is.na(extintion_date) then extintion_date else firstInterv_date )
@@ -88,44 +90,189 @@ fires.raw <- fires.raw %>% rowwise() %>%
 fires.raw <- as_tibble(fires.raw)
 df_status(fires.raw)
 
-#saving this point
 #save(fires.raw, file = "fires.raw.RData")
-#load("fires.raw.RData")
-
-#extracting month from the alert_date and creating a month column
-fires.raw$month <- str_extract(fires.raw$alert_date, "\\-[:digit:][:digit:]\\-")
-
-#change "-" by "" on the month column
-fires.raw$month <- str_replace_all(fires.raw$month, "\\-", "")
-
-#change to factor
-fires.raw$month = as.factor(fires.raw$month)
+load("fires.raw.RData")
 
 #bar plot of forests fires during 2015
-# july and august were the months with a great number of ocurrences
-ggplot(fires.raw, aes(x = month)) + geom_bar() + ggtitle("Distribution of forests fires across 2015")
+ggplot(fires.raw, aes(x = month(alert, label = T))) + 
+  geom_bar(fill = "red") + 
+  ggtitle("Distribution of forests fires across 2015") +
+  labs(x="Months", y="Total")
+
+
+# CREATE WEATHER HISTORICAL DATASET ----------------------------------------------
+
+load("data/station_data.Rdata")
+
+get_nearby_stations = function (df, measure){
+  nearby_stations = meteo_nearby_stations(lat_lon_df = df,
+                                          station_data = station_data, 
+                                          radius = 1000, 
+                                          var = measure,
+                                          year_min = 2014, year_max = 2015,
+                                          limit = 10)
+  return(nearby_stations)
+}
+
+get_weather_data = function (station, measure) {
+  wd <- ghcnd_search(station, var = measure, date_min = "2014-12-16", date_max = "2015-12-31")
+  return(wd)
+}
+
+# Create dataframe with all distinct parish, lat and lon. 
+# After Rename columns to names accepted by meteo_nearby_stations method
+df_parish = distinct(fires.raw, parish, lat, lon) %>% 
+  rename(id = parish, latitude = lat, longitude = lon)
+
+parishes = distinct(fires.raw, parish) %>% arrange(parish) 
+
+weather_measures = c("TAVG", "TMAX", "TMIN", "PRCP", "AWND")
+
+stations = get_nearby_stations(df_parish, weather_measures)
+
+weather_data = c()
+
+for (parish in parishes$parish) {
+  station = eval(parse(text=sprintf("stations$'%s'$id[1]", parish)))
+  wd = get_weather_data(station, weather_measures)
+  weather_data = append(weather_data, eval(parse(text=sprintf("list('%s'= wd)", parish))))
+}
+
+save(weather_data, file = "weather_data.RData")
+load("weather_data.RData")
+
+
+# MERGE WEATHER DATA AND FOREST FIRES -----------------------------------------
+
+# Create new attributes: tavg, tmax, tmin, prcp
+fires.raw = fires.raw %>% mutate(tavg = 0, tmax = 0, tmin = 0, prcp = 0)
+
+for (parish_name in parishes$parish) {
+  
+  arr_alert_dates = fires.raw %>% filter(parish == parish_name) %>% select(alert_date)
+  
+  wdTAVG = eval(parse(text=sprintf("weather_data$'%s'$tavg", parish_name)))
+  wdTMAX = eval(parse(text=sprintf("weather_data$'%s'$tmax", parish_name)))
+  wdTMIN = eval(parse(text=sprintf("weather_data$'%s'$tmin", parish_name)))
+  wdPRCP = eval(parse(text=sprintf("weather_data$'%s'$prcp", parish_name)))
+  
+  for (dt in arr_alert_dates$alert_date) {
+    
+    idx = which(fires.raw$parish == parish_name & fires.raw$alert_date == dt)
+    
+    if(!is.null(wdTAVG)){
+      #wdTAVG = eval(parse(text=sprintf("filter(wdTAVG, date == '%s')", dt)))
+      wdTAVG = filter(wdTAVG, date == dt)
+      if(nrow(wdTAVG)>0){
+        fires.raw[idx,]$tavg = wdTAVG$tavg/10
+      }
+    }
+    
+    if(!is.null(wdTMAX)){
+      wdTMAX = filter(wdTMAX, date == dt)
+      if(nrow(wdTMAX)>0){
+        fires.raw[idx,]$tmax = wdTMAX$tmax/10
+      }
+    }
+    
+    if(!is.null(wdTMIN)){
+      wdTMIN = filter(wdTMIN, date == dt)
+      if(nrow(wdTMIN)>0){
+        fires.raw[idx,]$tmin = wdTMIN$tmin/10
+      }
+    }
+    
+    if(!is.null(wdPRCP)){
+      wdPRCP = filter(wdPRCP, date == dt)
+      if(nrow(wdPRCP)>0){
+        fires.raw[idx,]$prcp = wdPRCP$prcp/10
+      }
+    }
+  }
+}
+
+ffires = fires.raw
+
+save(ffires, file = "ffires.RData")
+load("ffires.RData")
+
+
+
+
+
+#loading graphics library
+library(ggplot2)
+
+#bar plot of forests fires during 2015
+# Conclusion: july and august were the months with a great number of ocurrences
+ggplot(fires.raw, aes(x = month(alert_date, label = T))) +
+  geom_bar(fill = "red") +
+  ggtitle("Distribution of forests fires across 2015") +
+  labs(x="Months", y="Total")
 
 #bar plot of forests fires during 2015 by region
-#Entre Douro e Minho was the region with mores forests fires
-ggplot(fires.raw, aes(x = region)) +  theme(axis.text.x = element_text(angle = 90)) + geom_bar() + ggtitle("Distribution of forests fires by region")
+#Conclusion: Entre Douro e Minho was the region with mores forests fires
+ggplot(fires.raw, aes(x = region)) +  theme(axis.text.x = element_text(angle = 90)) + geom_bar() + ggtitle("Distribution of forests fires by region") +
+  labs(x="Region", y="Total")
 
 #bar plot of forests fires during 2015 by district
 #Porto was the district with more forests fires
-ggplot(fires.raw, aes(x = district)) +  theme(axis.text.x = element_text(angle = 90))+geom_bar() + ggtitle("Distribution of forests fires by district")
+ggplot(fires.raw, aes(x = district)) +  theme(axis.text.x = element_text(angle = 90))+geom_bar() + ggtitle("Distribution of forests fires by district") +
+  labs(x="District", y="Total")
 
 #bar plot of forests fires during 2015 by causes
 # negligence was the big cause of the forests fires
-ggplot(fires.raw, aes(x = cause_type)) + geom_bar(color = "black", fill = "light blue") + ggtitle("Distribution of causes of fires")
+ggplot(fires.raw, aes(x = cause_type)) + geom_bar(color = "black", fill = "light blue") + ggtitle("Distribution of causes of fires")+
+  labs(x="Causes of Fires", y="Total")
 
 #bar plot of forests fires during 2015 by origin
 #firepit was the origin of the most forests fires
-ggplot(fires.raw, aes(x = origin)) + geom_bar(fill = "blue") + ggtitle("Distribution of forests fires by origin across 2015")
+ggplot(fires.raw, aes(x = origin)) + geom_bar(fill = "blue") + ggtitle("Distribution of forests fires by origin across 2015")+
+  labs(x="Origin", y="Total")
 
 #Relationship between district, month and causes
-ggplot(fires.raw, aes(x = district, y = month)) +  theme(axis.text.x = element_text(angle = 90)) + geom_point(aes(color = cause_type)) + ggtitle("Relationship between district, month and cause_type")
+ggplot(fires.raw, aes(x = district, y = month(alert_date, label = T))) +  theme(axis.text.x = element_text(angle = 90)) + geom_point(aes(color = cause_type)) + ggtitle("Relationship between district, month and cause_type")+
+  labs(x="District", y="Months")
 
 #Relationship between region, month and causes
-ggplot(fires.raw, aes(x = region, y = month)) +  theme(axis.text.x = element_text(angle = 90)) + geom_point(aes(color = cause_type)) + ggtitle("Relationship between region and month")
+ggplot(fires.raw, aes(x = region, y = month(alert_date, label = T))) +  theme(axis.text.x = element_text(angle = 90)) + geom_point(aes(color = cause_type)) + ggtitle("Relationship between region and month") + labs(x="Region", y="Months")
 
-#Points of fires according latitude,longitude and region
-ggplot(fires.raw, aes(x = lat, y = lon)) +  theme(axis.text.x = element_text(angle = 90)) +  scale_x_discrete(labels = abbreviate) +  theme(axis.text.y = element_text(angle = 0)) +  scale_y_discrete(labels = abbreviate) + geom_point(aes(color = region)) + ggtitle("Points of fires according lat and lon")
+
+
+
+#creating datasets of train and teste
+library(caret)
+#generate the same datasets in any computer
+set.seed(123)
+#generate randomly a dataset
+lines <- createDataPartition(y=fires.raw$cause_type,p=.7,list=FALSE)
+#divide into two datasets
+fires.raw_train <- fires.raw %>% slice(lines)
+fires.raw_test <- fires.raw %>% slice(-lines)
+
+#creating a model of decision tree
+library(rpart)
+#using cause_type variable in function of the all others and with high complexity
+modelo <- rpart(cause_type ~., data = fires.raw_train, control = rpart.control(cp=0))
+
+#predicting
+fires.raw_test$Previsão <-predict(modelo, fires.raw_test)
+view(fires.raw_test)
+
+
+#creating a model of knn
+fires.raw_test_causes <- fires.raw_test$cause_type
+fires.raw_test <- fires.raw_test %>% select(-cause_type)
+
+#DEPOIS DO TIL TEM DE VIR NUM OU FACTORS
+knn.model <- knn3(cause_type ~region + origin + lat + lon,data=fires.raw_train,k=4)
+
+knn.model
+#making predictions on data test
+knn.preds <- predict(knn.model,fires.raw_test,type="class")
+
+#obtain the confusion matrix
+knn.confM <- confusionMatrix(fires.raw_test_causes,knn.preds)
+knn.confM
+
+#repeat the process for different k´s

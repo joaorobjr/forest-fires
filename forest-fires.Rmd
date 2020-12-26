@@ -4,21 +4,21 @@ subtitle: "Practical Assignment of Data Mining I"
 author: "By Robson Teixeira, Eduardo Rodrigues and Claudio Rocha"
 date: "M:CC -- FCUP, 10/01/2021"
 output:
+  html_notebook: 
+    code_folding: hide
+    df_print: default
+    number_sections: yes
+    toc: yes
+    toc_float: yes
   html_document:
     #df_print: paged
-    df_print: tibble
-    toc: yes
     code_folding: "hide"
+    df_print: tibble
     fig_caption: yes
     includes:
       in_header: header.html
     number_sections: yes
     theme: cerulean
-    toc_float: yes
-  html_notebook: 
-    code_folding: hide
-    df_print: default
-    number_sections: yes
     toc: yes
     toc_float: yes
   pdf_document:
@@ -67,27 +67,23 @@ references:
 ---
 
 ```{r setup, include= F}
-library(dplyr)
-library(funModeling)
-library(stringr)
-library(chron)
+knitr::opts_chunk$set(echo= T, warning= F, message= F)
+require(tidyverse)
+require(funModeling)
+require(measurements)
+require(lubrequire)
+require(ggplot2)
+require('rnoaa')
+require(lubridate)
+require(devtools)
+require(caret)
+options(noaakey) = "mqEuOSuAUjyuGlTjVjxxCpzRlbrooRnr"
 
 # turns off scientific notation; to turn it back on, use scipen= 0
 options(scipen= 999)
-
-
-fires.train.path = file("data/fires2015_train.csv")
-fires.test.path = file("data/fires2015_test.csv")
-
-fires.raw <- read.csv(fires.train.path, stringsAsFactors = FALSE, 
-                      na.strings = c("-", "","NA"), 
-                      encoding = "UTF-8")
-
-fires.test.raw <- read.csv(fires.test.path, stringsAsFactors = FALSE, 
-                           na.strings = c("-", "","NA"), 
-                           encoding = "UTF-8")
-
 ```
+
+
 
 # Abstract {-}
 
@@ -101,7 +97,7 @@ Their harmful impacts and effects on ecosystems can be major ones. Among them, w
 
 Data mining techniques can help in the prediction of the cause of the fire and, thus, better support the decision of taking preventive measures in order to avoid tragedy. In effect, this can play a major role in resource allocation, mitigation and recovery efforts.
 
-## Forest Fire Dataset
+# Forest Fire Dataset
 
 The ICFN - Nature and Forest Conservation Institute has the record of the list of forest fires occurred in Portugal for several years. For each fire, there is information such as the site, the alert date/hour, the extinction date/hour, the affected area and the cause type. A classifications for causes types are presented in table \@ref(tab:cause_type).
 
@@ -115,51 +111,106 @@ Negligence  | the misguided use of fire in activities such as burning trash, mas
 Intentional | incendiarism and arson, mostly resulting from behaviors and attitudes reacting to theconstraints of agroforestry management systems and to conflicts related to land use
 Rekindling  | reburning of an area over which a fire has previously passed, but where fuel has been left that is later ignited by latent heat, sparks, or embers
 
+#-----------------------------XXXXX_____________________
+```{r data, echo= F, error= F}
+#fires.train.path = file("C:/users/edamr/Downloads/fires2015_train.csv")
+#fires.test.path = file("data/fires2015_test.csv")
+
+fires.raw = as_tibble(read.csv("C:/users/edamr/Downloads/fires2015_train.csv",
+                               stringsAsFactors = FALSE, 
+                               na.strings = c("-", "","NA"), 
+                               encoding = "UTF-8"))
+
+#fires.test.raw <- read.csv(fires.test.path, stringsAsFactors = FALSE, 
+#                           na.strings = c("-", "","NA"), 
+#                           encoding = "UTF-8")
+
+```
+#------------------------------XXXX---------------------------------
 
 The dataset used in this study was provided by ICFN, and it contains the data on reported forest fires during 2015 and its respective causes. The data are distributed in files:
 
 * **fires2015train.csv** --- the file contain the data of 7511 reported forest fires during 2015
 
-```{r echo= F}
+A summary of the structure of it and a glimpse of their first rows is provided below.
+```{r fires.raw-summary, echo = F}
 glimpse(fires.raw)
-```
-
-```{r echo= F}
 head(fires.raw)
-```
-
-```{r}
 df_status(fires.raw)
+tail(fires.raw)
 ```
 
-
-Table \@ref(tab:variables) describes all variables contained in the `fires2015train.csv` of the data set.
+Table \@ref(tab:variables) describes all variables contained in the `fires.raw` of the data set.
 Clearly, the type of some of variables is incorrect and inconvenient for analysis and that was taken care of in section \@ref(data-cleaning).
 
-Table: (\#tab:variables) List of variables present in the three original files from the Flixster data set.
+Table: (\#tab:variables) List of variables present in the original file from the fires2015train.csv data set.
 
-Variable    |Type        |Description                   |Tibble
-------------|------------|------------------------------|------
-age         |character   |Age of user                   |profiles
-date        |character   |Date in which user rated movie|ratings
-gender      |character   |User gender                   |profiles
-lastlogin   |integer     |Last login numerical tag      |profiles
-location    |integer     |Location identifier of user   |profiles
-memberfor   |character   |Member since date             |profiles
-movieid     |integer     |Movie unique identifier       |movies
-movieid     |integer     |Movie unique identifier       |ratings
-moviename   |character   |movie name                    |movies
-profileview |character   |Numerical tag of the user     |profiles
-rating      |double      |Rating of movie by user       |ratings
-userid      |integer     |User unique identifier        |profiles
-userid      |integer     |User unique identifier        |ratings
+Variable          |Type        |Description                   |
+------------------|------------|------------------------------|------
+id                |integer     |id number                     |
+region            |character   |region name                   |
+district          |character   |district name                 |
+municipality      |character   |municipality name             |
+parish            |character   |parish name                   |
+lat               |character   |latitude value                |
+lon               |character   |longitude value               |
+origin            |character   |how the fire started          |
+alert_date        |character   |date when fire started        |
+alert_hour        |character   |alert hour                    |
+extinction_date   |character   |date of the end of fire       |
+extinction hour   |character   |hour of the end of fire       |
+firstInterv_date  |character   |date of intervention          |
+firstInterv_hour  |character   |hour of intervention          |
+alert_source      |logical     |alert source                  |
+village_area      |numeric     |village area affected         |
+alert_source      |logical     |alert source                  |
+village_area      |numeric     |village area affected         |
+vegetation_area   |numeric     |vegetation area affected      |
+farming_area      |numeric     |farming area affected         |
+village_veget_area|numeric     |total village+veget affected  |
+total_area        |numeric     |total area affected           |
+cause_type        |character   |cause of the fire             |
+
 
 # Data Preparation
 
 ## Data Cleaning: 
-Identifying and correcting mistakes or errors in the data.
+We started to verify the dataset to identify and correct the mistakes or errors in the data.
+First we tested if there were duplicated observations.
+```{r echo=FALSE}
+anyDuplicated(fires.raw)
+```
 
-```{r}
+The latitude variable had to be corrected because we observed that there were incorrect values like a data mixed in it.
+```{r echo=FALSE}
+idx.lat.wrong = which(str_detect(fires.raw$lat, '1900-01-01'))
+lat.wrong = fires.raw[idx.lat.wrong,]
+head(lat.wrong)
+```
+
+The number of observations with wrong value in lat variable were detected.
+```{r echo=FALSE}
+print(str_c("There are",length(idx.lat.wrong),"observations with wrong value '1900-01-01'", sep = " "))
+```
+
+Value imputation based on another observation that has same region, district, municipality and parish.
+```{r echo=FALSE}
+for (idx in idx.lat.wrong) {
+  df_temp = fires.raw[-idx.lat.wrong,] %>% 
+    filter(region == fires.raw[idx,]$region, 
+           district == fires.raw[idx,]$district,
+           municipality ==fires.raw[idx,]$municipality,
+           parish == fires.raw[idx,]$parish)
+  fires.raw$lat[idx] = df_temp$lat[1]
+  fires.raw$lon[idx] = df_temp$lon[1]
+}
+rm(df_temp)
+```
+
+Cleaning lat and lon variables and convert from GPS coodinate to decimals
+```{r echo=FALSE}
+vec_clean <- c("''"="", "E-12"="", "E-11"="", "E-02"="", ","=".", "º"=" ", "'"=" ", ":"=" ")
+fires.raw$lat <- conv_unit(str_replace_all(str_trim(fires.raw$lat), vec_clean), "deg_min_sec", "dec_deg")
 
 ```
 
