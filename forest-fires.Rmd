@@ -4,12 +4,6 @@ subtitle: "Practical Assignment of Data Mining I"
 author: "By Robson Teixeira, Eduardo Rodrigues and Claudio Rocha"
 date: "M:CC -- FCUP, 10/01/2021"
 output:
-  html_notebook: 
-    code_folding: hide
-    df_print: default
-    number_sections: yes
-    toc: yes
-    toc_float: yes
   html_document:
     #df_print: paged
     code_folding: "hide"
@@ -19,6 +13,12 @@ output:
       in_header: header.html
     number_sections: yes
     theme: cerulean
+    toc: yes
+    toc_float: yes
+  html_notebook: 
+    code_folding: hide
+    df_print: default
+    number_sections: yes
     toc: yes
     toc_float: yes
   pdf_document:
@@ -66,18 +66,18 @@ references:
     year: 2020
 ---
 
+---
+
+
 ```{r setup, include= F}
 knitr::opts_chunk$set(echo= T, warning= F, message= F)
 require(tidyverse)
 require(funModeling)
 require(measurements)
-require(lubrequire)
 require(ggplot2)
-require('rnoaa')
 require(lubridate)
 require(devtools)
 require(caret)
-options(noaakey) = "mqEuOSuAUjyuGlTjVjxxCpzRlbrooRnr"
 
 # turns off scientific notation; to turn it back on, use scipen= 0
 options(scipen= 999)
@@ -111,12 +111,12 @@ Negligence  | the misguided use of fire in activities such as burning trash, mas
 Intentional | incendiarism and arson, mostly resulting from behaviors and attitudes reacting to theconstraints of agroforestry management systems and to conflicts related to land use
 Rekindling  | reburning of an area over which a fire has previously passed, but where fuel has been left that is later ignited by latent heat, sparks, or embers
 
-#-----------------------------XXXXX_____________________
-```{r data, echo= F, error= F}
-#fires.train.path = file("C:/users/edamr/Downloads/fires2015_train.csv")
-#fires.test.path = file("data/fires2015_test.csv")
 
-fires.raw = as_tibble(read.csv("C:/users/edamr/Downloads/fires2015_train.csv",
+```{r data, echo= F, error= F}
+fires.train.path = file("data/fires2015_train.csv")
+fires.test.path = file("data/fires2015_test.csv")
+
+fires.raw = as_tibble(read.csv("data/fires2015_train.csv",
                                stringsAsFactors = FALSE, 
                                na.strings = c("-", "","NA"), 
                                encoding = "UTF-8"))
@@ -126,7 +126,7 @@ fires.raw = as_tibble(read.csv("C:/users/edamr/Downloads/fires2015_train.csv",
 #                           encoding = "UTF-8")
 
 ```
-#------------------------------XXXX---------------------------------
+
 
 The dataset used in this study was provided by ICFN, and it contains the data on reported forest fires during 2015 and its respective causes. The data are distributed in files:
 
@@ -174,26 +174,27 @@ cause_type        |character   |cause of the fire             |
 
 # Data Preparation
 
-## Data Cleaning: 
+## Data Cleaning and Transforms: 
 We started to verify the dataset to identify and correct the mistakes or errors in the data.
 First we tested if there were duplicated observations.
 ```{r echo=FALSE}
 anyDuplicated(fires.raw)
 ```
+The result was negative.
 
-The latitude variable had to be corrected because we observed that there were incorrect values like a data mixed in it.
+The lat variable had to be corrected because we observed that there were incorrect values like a date mixed in it.
 ```{r echo=FALSE}
 idx.lat.wrong = which(str_detect(fires.raw$lat, '1900-01-01'))
 lat.wrong = fires.raw[idx.lat.wrong,]
 head(lat.wrong)
 ```
 
-The number of observations with wrong value in lat variable were detected.
+The number of observations with wrong value in lat variable were detected and the total number of them is showed below.
 ```{r echo=FALSE}
 print(str_c("There are",length(idx.lat.wrong),"observations with wrong value '1900-01-01'", sep = " "))
 ```
 
-Value imputation based on another observation that has same region, district, municipality and parish.
+In the wrong values, an imputation was made based on another observation that has the same region, district, municipality and parish than these. After the imputation 8 NA values were assigned to observations.
 ```{r echo=FALSE}
 for (idx in idx.lat.wrong) {
   df_temp = fires.raw[-idx.lat.wrong,] %>% 
@@ -207,14 +208,58 @@ for (idx in idx.lat.wrong) {
 rm(df_temp)
 ```
 
-Cleaning lat and lon variables and convert from GPS coodinate to decimals
+It was necessary to do a cleaning on lat and lon variables and convert their contents from GPS coodinate to decimals.Before the transformation they were like below:
+
+first lines of lat variable
+```{r echo=FALSE}
+head(fires.raw$lat)
+```
+first lines of lon variable
+```{r echo=FALSE}
+head(fires.raw$lon)
+```
+
 ```{r echo=FALSE}
 vec_clean <- c("''"="", "E-12"="", "E-11"="", "E-02"="", ","=".", "º"=" ", "'"=" ", ":"=" ")
 fires.raw$lat <- conv_unit(str_replace_all(str_trim(fires.raw$lat), vec_clean), "deg_min_sec", "dec_deg")
-
+# Ocorre um warning ao executar essa linha
+fires.raw$lon <- conv_unit(str_replace_all(str_trim(fires.raw$lon, side = "both"), vec_clean), "deg_min_sec", "dec_deg")
+# Workaround
+fires.raw$lon[7511] <- conv_unit("8 34 21.5868000000013", "deg_min_sec", "dec_deg")
 ```
 
-## Data Transforms
+After the transformation, the values were corrected.
+
+first lines of lat variable
+```{r echo=FALSE}
+head(fires.raw$lat)
+```
+first lines of lon variable
+```{r echo=FALSE}
+head(fires.raw$lon)
+```
+
+
+#------------------------------XXXX---------------------------------
+```{r echo=FALSE}
+# Data imputation: firstInterv_date and firstInterv_hour
+fires.raw <- fires.raw %>% rowwise() %>% mutate(firstInterv_date = if_else( is.na(firstInterv_date) && !is.na(extinction_date), extinction_date , firstInterv_date),firstInterv_hour = if_else( is.na(firstInterv_hour) && !is.na(extinction_hour), extinction_hour , firstInterv_hour))
+```
+
+Fix data type as factor on the variables below.
+```{r echo=FALSE}
+fires.raw$region = as.factor(fires.raw$region)
+fires.raw$district = as.factor(fires.raw$district)
+fires.raw$municipality = as.factor(fires.raw$municipality)
+fires.raw$parish = as.factor(fires.raw$parish)
+fires.raw$origin = as.factor(fires.raw$origin)
+fires.raw$cause_type = as.factor(fires.raw$cause_type)
+glimpse(fires.raw)
+```
+
+
+
+
 Changing the scale or distribution of variables.
 
 ```{r}

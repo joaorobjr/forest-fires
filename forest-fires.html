@@ -1357,7 +1357,7 @@ MathJax.Hub.Config({
   div.column{display: inline-block; vertical-align: top; width: 50%;}
   div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
   ul.task-list{list-style: none;}
-      </style>
+    </style>
 
 <style type="text/css">code{white-space: pre;}</style>
 <style type="text/css">
@@ -1403,6 +1403,7 @@ h6 {
   text-align: left;
 }
 </style>
+
 
 
 
@@ -1604,6 +1605,7 @@ div.tocify {
 </div>
 
 
+<hr />
 <div id="abstract" class="section level1 unnumbered">
 <h1>Abstract</h1>
 </div>
@@ -1615,8 +1617,9 @@ div.tocify {
 <p>Forest fires are a very important issue that negatively affects climate change. Typically, the causes of forest fires are those oversights, accidents and negligence committed by individuals, intentional acts and natural causes. The latter is the root cause for only a minority of the fires.</p>
 <p>Their harmful impacts and effects on ecosystems can be major ones. Among them, we can mention the disappearance of native species, the increase in levels of carbon dioxide in the atmosphere, earth’s nutrients destroyed by the ashes, and the massive loss of wildlife.</p>
 <p>Data mining techniques can help in the prediction of the cause of the fire and, thus, better support the decision of taking preventive measures in order to avoid tragedy. In effect, this can play a major role in resource allocation, mitigation and recovery efforts.</p>
-<div id="forest-fire-dataset" class="section level2">
-<h2><span class="header-section-number">2.1</span> Forest Fire Dataset</h2>
+</div>
+<div id="forest-fire-dataset" class="section level1">
+<h1><span class="header-section-number">3</span> Forest Fire Dataset</h1>
 <p>The ICFN - Nature and Forest Conservation Institute has the record of the list of forest fires occurred in Portugal for several years. For each fire, there is information such as the site, the alert date/hour, the extinction date/hour, the affected area and the cause type. A classifications for causes types are presented in table @ref(tab:cause_type).</p>
 <p>Table 1: (#tab:cause_type) Classifications of causes of forest fires.</p>
 <table>
@@ -1657,6 +1660,7 @@ div.tocify {
 <ul>
 <li><strong>fires2015train.csv</strong> — the file contain the data of 7511 reported forest fires during 2015</li>
 </ul>
+<p>A summary of the structure of it and a glimpse of their first rows is provided below.</p>
 <pre><code>## Rows: 7,511
 ## Columns: 21
 ## $ id                 &lt;int&gt; 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 1...
@@ -1694,7 +1698,6 @@ div.tocify {
 ## #   alert_source &lt;lgl&gt;, village_area &lt;dbl&gt;, vegetation_area &lt;dbl&gt;,
 ## #   farming_area &lt;dbl&gt;, village_veget_area &lt;dbl&gt;, total_area &lt;dbl&gt;,
 ## #   cause_type &lt;chr&gt;</code></pre>
-<pre class="r"><code>df_status(fires.raw)</code></pre>
 <pre><code>##              variable q_zeros p_zeros q_na   p_na q_inf p_inf      type unique
 ## 1                  id       0    0.00    0   0.00     0     0   integer   7511
 ## 2              region       0    0.00  501   6.67     0     0 character     10
@@ -1717,131 +1720,263 @@ div.tocify {
 ## 19 village_veget_area    1413   18.81    0   0.00     0     0   numeric   1377
 ## 20         total_area       8    0.11    0   0.00     0     0   numeric   1781
 ## 21         cause_type       0    0.00    0   0.00     0     0 character      4</code></pre>
-<p>Table @ref(tab:variables) describes all variables contained in the <code>fires2015train.csv</code> of the data set. Clearly, the type of some of variables is incorrect and inconvenient for analysis and that was taken care of in section @ref(data-cleaning).</p>
+<pre><code>## # A tibble: 6 x 21
+##      id region district municipality parish lat   lon   origin alert_date
+##   &lt;int&gt; &lt;chr&gt;  &lt;chr&gt;    &lt;chr&gt;        &lt;chr&gt;  &lt;chr&gt; &lt;chr&gt; &lt;chr&gt;  &lt;chr&gt;     
+## 1  7506 Trás-~ Bragança Mirandela    Carva~ 41:3~ 7:10~ firep~ 2015-07-18
+## 2  7507 Beira~ Castelo~ Idanha-a-No~ Oledo  39:5~ 7:20~ firep~ 2015-08-07
+## 3  7508 Entre~ Porto    Penafiel     São M~ 41:1~ 8:12~ firep~ 2015-08-08
+## 4  7509 Entre~ Porto    Amarante     Telões 41:1~ 8:6:~ firep~ 2015-08-08
+## 5  7510 Entre~ Braga    Celorico de~ Gémeos 41:2~ 8:0:~ firep~ 2015-08-08
+## 6  7511 Ribat~ Santarém Ourém        Nossa~ 39:3~ 8:34~ firep~ 2015-08-08
+## # ... with 12 more variables: alert_hour &lt;chr&gt;, extinction_date &lt;chr&gt;,
+## #   extinction_hour &lt;chr&gt;, firstInterv_date &lt;chr&gt;, firstInterv_hour &lt;chr&gt;,
+## #   alert_source &lt;lgl&gt;, village_area &lt;dbl&gt;, vegetation_area &lt;dbl&gt;,
+## #   farming_area &lt;dbl&gt;, village_veget_area &lt;dbl&gt;, total_area &lt;dbl&gt;,
+## #   cause_type &lt;chr&gt;</code></pre>
+<p>Table @ref(tab:variables) describes all variables contained in the <code>fires.raw</code> of the data set. Clearly, the type of some of variables is incorrect and inconvenient for analysis and that was taken care of in section @ref(data-cleaning).</p>
 <table>
-<caption>(#tab:variables) List of variables present in the three original files from the Flixster data set.</caption>
+<caption>(#tab:variables) List of variables present in the original file from the fires2015train.csv data set.</caption>
 <thead>
 <tr class="header">
 <th>Variable</th>
 <th>Type</th>
 <th>Description</th>
-<th>Tibble</th>
+<th></th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td>age</td>
-<td>character</td>
-<td>Age of user</td>
-<td>profiles</td>
+<td>id</td>
+<td>integer</td>
+<td>id number</td>
+<td></td>
 </tr>
 <tr class="even">
-<td>date</td>
+<td>region</td>
 <td>character</td>
-<td>Date in which user rated movie</td>
-<td>ratings</td>
+<td>region name</td>
+<td></td>
 </tr>
 <tr class="odd">
-<td>gender</td>
+<td>district</td>
 <td>character</td>
-<td>User gender</td>
-<td>profiles</td>
+<td>district name</td>
+<td></td>
 </tr>
 <tr class="even">
-<td>lastlogin</td>
-<td>integer</td>
-<td>Last login numerical tag</td>
-<td>profiles</td>
-</tr>
-<tr class="odd">
-<td>location</td>
-<td>integer</td>
-<td>Location identifier of user</td>
-<td>profiles</td>
-</tr>
-<tr class="even">
-<td>memberfor</td>
+<td>municipality</td>
 <td>character</td>
-<td>Member since date</td>
-<td>profiles</td>
+<td>municipality name</td>
+<td></td>
 </tr>
 <tr class="odd">
-<td>movieid</td>
-<td>integer</td>
-<td>Movie unique identifier</td>
-<td>movies</td>
-</tr>
-<tr class="even">
-<td>movieid</td>
-<td>integer</td>
-<td>Movie unique identifier</td>
-<td>ratings</td>
-</tr>
-<tr class="odd">
-<td>moviename</td>
+<td>parish</td>
 <td>character</td>
-<td>movie name</td>
-<td>movies</td>
+<td>parish name</td>
+<td></td>
 </tr>
 <tr class="even">
-<td>profileview</td>
+<td>lat</td>
 <td>character</td>
-<td>Numerical tag of the user</td>
-<td>profiles</td>
+<td>latitude value</td>
+<td></td>
 </tr>
 <tr class="odd">
-<td>rating</td>
-<td>double</td>
-<td>Rating of movie by user</td>
-<td>ratings</td>
+<td>lon</td>
+<td>character</td>
+<td>longitude value</td>
+<td></td>
 </tr>
 <tr class="even">
-<td>userid</td>
-<td>integer</td>
-<td>User unique identifier</td>
-<td>profiles</td>
+<td>origin</td>
+<td>character</td>
+<td>how the fire started</td>
+<td></td>
 </tr>
 <tr class="odd">
-<td>userid</td>
-<td>integer</td>
-<td>User unique identifier</td>
-<td>ratings</td>
+<td>alert_date</td>
+<td>character</td>
+<td>date when fire started</td>
+<td></td>
+</tr>
+<tr class="even">
+<td>alert_hour</td>
+<td>character</td>
+<td>alert hour</td>
+<td></td>
+</tr>
+<tr class="odd">
+<td>extinction_date</td>
+<td>character</td>
+<td>date of the end of fire</td>
+<td></td>
+</tr>
+<tr class="even">
+<td>extinction hour</td>
+<td>character</td>
+<td>hour of the end of fire</td>
+<td></td>
+</tr>
+<tr class="odd">
+<td>firstInterv_date</td>
+<td>character</td>
+<td>date of intervention</td>
+<td></td>
+</tr>
+<tr class="even">
+<td>firstInterv_hour</td>
+<td>character</td>
+<td>hour of intervention</td>
+<td></td>
+</tr>
+<tr class="odd">
+<td>alert_source</td>
+<td>logical</td>
+<td>alert source</td>
+<td></td>
+</tr>
+<tr class="even">
+<td>village_area</td>
+<td>numeric</td>
+<td>village area affected</td>
+<td></td>
+</tr>
+<tr class="odd">
+<td>alert_source</td>
+<td>logical</td>
+<td>alert source</td>
+<td></td>
+</tr>
+<tr class="even">
+<td>village_area</td>
+<td>numeric</td>
+<td>village area affected</td>
+<td></td>
+</tr>
+<tr class="odd">
+<td>vegetation_area</td>
+<td>numeric</td>
+<td>vegetation area affected</td>
+<td></td>
+</tr>
+<tr class="even">
+<td>farming_area</td>
+<td>numeric</td>
+<td>farming area affected</td>
+<td></td>
+</tr>
+<tr class="odd">
+<td>village_veget_area</td>
+<td>numeric</td>
+<td>total village+veget affected</td>
+<td></td>
+</tr>
+<tr class="even">
+<td>total_area</td>
+<td>numeric</td>
+<td>total area affected</td>
+<td></td>
+</tr>
+<tr class="odd">
+<td>cause_type</td>
+<td>character</td>
+<td>cause of the fire</td>
+<td></td>
 </tr>
 </tbody>
 </table>
 </div>
-</div>
 <div id="data-preparation" class="section level1">
-<h1><span class="header-section-number">3</span> Data Preparation</h1>
-<div id="data-cleaning" class="section level2">
-<h2><span class="header-section-number">3.1</span> Data Cleaning:</h2>
-<p>Identifying and correcting mistakes or errors in the data.</p>
-</div>
-<div id="data-transforms" class="section level2">
-<h2><span class="header-section-number">3.2</span> Data Transforms</h2>
+<h1><span class="header-section-number">4</span> Data Preparation</h1>
+<div id="data-cleaning-and-transforms" class="section level2">
+<h2><span class="header-section-number">4.1</span> Data Cleaning and Transforms:</h2>
+<p>We started to verify the dataset to identify and correct the mistakes or errors in the data. First we tested if there were duplicated observations.</p>
+<pre><code>## [1] 0</code></pre>
+<p>The result was negative.</p>
+<p>The lat variable had to be corrected because we observed that there were incorrect values like a date mixed in it.</p>
+<pre><code>## # A tibble: 6 x 21
+##      id region district municipality parish lat   lon   origin alert_date
+##   &lt;int&gt; &lt;chr&gt;  &lt;chr&gt;    &lt;chr&gt;        &lt;chr&gt;  &lt;chr&gt; &lt;chr&gt; &lt;chr&gt;  &lt;chr&gt;     
+## 1   102 Alent~ Évora    Reguengos d~ Campo  1900~ 07:3~ agric~ 2015-05-20
+## 2   439 Alent~ Évora    Mora         Cabeç~ 1900~ 08:0~ agric~ 2015-05-16
+## 3   486 Algar~ Faro     Silves       São B~ 1900~ 00:0~ firep~ 2015-05-21
+## 4   963 Algar~ Faro     Lagos        Bensa~ 1900~ 00:0~ fire   2015-05-14
+## 5  1512 Alent~ Évora    Vendas Novas Venda~ 1900~ 00:0~ fire   2015-05-19
+## 6  1658 Algar~ Faro     Lagos        São S~ 1900~ 08:4~ agric~ 2015-07-26
+## # ... with 12 more variables: alert_hour &lt;chr&gt;, extinction_date &lt;chr&gt;,
+## #   extinction_hour &lt;chr&gt;, firstInterv_date &lt;chr&gt;, firstInterv_hour &lt;chr&gt;,
+## #   alert_source &lt;lgl&gt;, village_area &lt;dbl&gt;, vegetation_area &lt;dbl&gt;,
+## #   farming_area &lt;dbl&gt;, village_veget_area &lt;dbl&gt;, total_area &lt;dbl&gt;,
+## #   cause_type &lt;chr&gt;</code></pre>
+<p>The number of observations with wrong value in lat variable were detected and the total number of them is showed below.</p>
+<pre><code>## [1] &quot;There are 38 observations with wrong value &#39;1900-01-01&#39;&quot;</code></pre>
+<p>In the wrong values, an imputation was made based on another observation that has the same region, district, municipality and parish than these. After the imputation 8 NA values were assigned to observations.</p>
+<p>It was necessary to do a cleaning on lat and lon variables and convert their contents from GPS coodinate to decimals.Before the transformation they were like below:</p>
+<p>first lines of lat variable</p>
+<pre><code>## [1] &quot;41:44:48.5663999999878&#39;&#39;&quot; &quot;41:12:58.4280000000109&#39;&#39;&quot;
+## [3] &quot;41:38:07&quot;                 &quot;41:51:4.15079999998738&#39;&#39;&quot;
+## [5] &quot;41:35:23&quot;                 &quot;41:21:02&quot;</code></pre>
+<p>first lines of lon variable</p>
+<pre><code>## [1] &quot;8:31:12.3276000000027&#39;&#39;&quot; &quot;8:12:28.3788000000025&#39;&#39;&quot;
+## [3] &quot;07:54:43&quot;                &quot;7:42:11.7215999999988&#39;&#39;&quot;
+## [5] &quot;07:24:14&quot;                &quot;07:54:57&quot;</code></pre>
+<p>After the transformation, the values were corrected.</p>
+<p>first lines of lat variable</p>
+<pre><code>## [1] &quot;41.746824&quot;        &quot;41.21623&quot;         &quot;41.6352777777778&quot; &quot;41.851153&quot;       
+## [5] &quot;41.5897222222222&quot; &quot;41.3505555555556&quot;</code></pre>
+<p>first lines of lon variable</p>
+<pre><code>## [1] &quot;8.520091&quot;         &quot;8.207883&quot;         &quot;7.91194444444444&quot; &quot;7.703256&quot;        
+## [5] &quot;7.40388888888889&quot; &quot;7.91583333333333&quot;</code></pre>
+<p>#——————————XXXX———————————</p>
+<p>Fix data type as factor on the variables below.</p>
+<pre><code>## Rows: 7,511
+## Columns: 21
+## Rowwise: 
+## $ id                 &lt;int&gt; 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 1...
+## $ region             &lt;fct&gt; Entre Douro e Minho, Entre Douro e Minho, Trás-o...
+## $ district           &lt;fct&gt; Viana do Castelo, Porto, Vila Real, Vila Real, V...
+## $ municipality       &lt;fct&gt; Ponte de Lima, Marco de Canaveses, Boticas, Mont...
+## $ parish             &lt;fct&gt; &quot;Serdedelo&quot;, &quot;Vila Boa de Quires&quot;, &quot;Cerdedo&quot;, &quot;G...
+## $ lat                &lt;chr&gt; &quot;41.746824&quot;, &quot;41.21623&quot;, &quot;41.6352777777778&quot;, &quot;41...
+## $ lon                &lt;chr&gt; &quot;8.520091&quot;, &quot;8.207883&quot;, &quot;7.91194444444444&quot;, &quot;7.7...
+## $ origin             &lt;fct&gt; fire, fire, fire, firepit, firepit, firepit, fir...
+## $ alert_date         &lt;chr&gt; &quot;2015-03-24&quot;, &quot;2015-03-24&quot;, &quot;2015-03-24&quot;, &quot;2015-...
+## $ alert_hour         &lt;chr&gt; &quot;17:01:00&quot;, &quot;17:10:00&quot;, &quot;21:40:00&quot;, &quot;16:00:00&quot;, ...
+## $ extinction_date    &lt;chr&gt; &quot;2015-03-24&quot;, &quot;2015-03-24&quot;, &quot;2015-03-25&quot;, &quot;2015-...
+## $ extinction_hour    &lt;chr&gt; &quot;18:09:00&quot;, &quot;18:47:00&quot;, &quot;05:45:00&quot;, &quot;17:00:00&quot;, ...
+## $ firstInterv_date   &lt;chr&gt; &quot;2015-03-24&quot;, &quot;2015-03-24&quot;, &quot;2015-03-24&quot;, &quot;2015-...
+## $ firstInterv_hour   &lt;chr&gt; &quot;17:10:00&quot;, &quot;17:16:00&quot;, &quot;22:00:00&quot;, &quot;16:14:00&quot;, ...
+## $ alert_source       &lt;lgl&gt; NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, ...
+## $ village_area       &lt;dbl&gt; 2.50, 0.00, 0.50, 0.00, 0.10, 0.00, 0.35, 0.50, ...
+## $ vegetation_area    &lt;dbl&gt; 0.000, 1.350, 38.000, 0.010, 0.000, 0.100, 14.82...
+## $ farming_area       &lt;dbl&gt; 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, ...
+## $ village_veget_area &lt;dbl&gt; 2.500, 1.350, 38.500, 0.010, 0.100, 0.100, 15.17...
+## $ total_area         &lt;dbl&gt; 2.5000, 1.3500, 38.5000, 0.0100, 0.1000, 0.1000,...
+## $ cause_type         &lt;fct&gt; negligent, negligent, negligent, negligent, reki...</code></pre>
 <p>Changing the scale or distribution of variables.</p>
 </div>
 <div id="feature-engineering" class="section level2">
-<h2><span class="header-section-number">3.3</span> Feature Engineering</h2>
+<h2><span class="header-section-number">4.2</span> Feature Engineering</h2>
 <p>Deriving new variables from available data.</p>
 </div>
 <div id="feature-selection" class="section level2">
-<h2><span class="header-section-number">3.4</span> Feature Selection</h2>
+<h2><span class="header-section-number">4.3</span> Feature Selection</h2>
 <p>Identifying those input variables that are most relevant to the task.</p>
 </div>
 <div id="dimensionality-reduction" class="section level2">
-<h2><span class="header-section-number">3.5</span> Dimensionality Reduction</h2>
+<h2><span class="header-section-number">4.4</span> Dimensionality Reduction</h2>
 <p>Creating compact projections of the data.</p>
 </div>
 </div>
 <div id="exploratory-data-analysis" class="section level1">
-<h1><span class="header-section-number">4</span> Exploratory Data Analysis</h1>
+<h1><span class="header-section-number">5</span> Exploratory Data Analysis</h1>
 </div>
 <div id="conclusions-shortcomings-and-future-work" class="section level1">
-<h1><span class="header-section-number">5</span> Conclusions, Shortcomings and Future Work</h1>
+<h1><span class="header-section-number">6</span> Conclusions, Shortcomings and Future Work</h1>
 </div>
 <div id="appendix" class="section level1">
-<h1><span class="header-section-number">6</span> Appendix</h1>
+<h1><span class="header-section-number">7</span> Appendix</h1>
 </div>
 
 
@@ -1855,7 +1990,7 @@ div.tocify {
 
 // add bootstrap table styles to pandoc tables
 function bootstrapStylePandocTables() {
-  $('tr.header').parent('thead').parent('table').addClass('table table-condensed');
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
 }
 $(document).ready(function () {
   bootstrapStylePandocTables();

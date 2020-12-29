@@ -1,7 +1,6 @@
 library(tidyverse)
 library(funModeling)
 library(measurements)
-library(lubridate)
 library(ggplot2)
 library('rnoaa')
 library(lubridate)
@@ -9,7 +8,7 @@ library(devtools)
 options(noaakey = "mqEuOSuAUjyuGlTjVjxxCpzRlbrooRnr")
 
 #Load raw data --------------------------------------------------
-fires.raw = as_tibble(read.csv("C:/users/edamr/Downloads/fires2015_train.csv",
+fires.raw = as_tibble(read.csv("data/fires2015_train.csv",
                                stringsAsFactors = FALSE, 
                                na.strings = c("-", "","NA"), 
                                encoding = "UTF-8"))
@@ -195,6 +194,46 @@ ffires = fires.raw
 
 save(ffires, file = "ffires.RData")
 load("ffires.RData")
+
+
+
+#Remove Redundant Features
+set.seed(7)
+# load the library
+library(mlbench)
+library(caret)
+# load the data
+#data(ffires)
+# calculate correlation matrix: village_area until total_area
+correlationMatrix <- cor(ffires[,16:20])
+# summarize the correlation matrix
+print(correlationMatrix)
+# find attributes that are highly corrected (ideally >0.75)
+highlyCorrelated <- findCorrelation(correlationMatrix, cutoff=0.5)
+# print indexes of highly correlated attributes
+print(highlyCorrelated)
+#highly correlated: village_veget_area and total area
+
+
+
+
+#Rank Features By Importance
+set.seed(7)
+# load the library
+#library(mlbench)
+#library(caret)
+# load the dataset
+#data(PimaIndiansDiabetes)
+# prepare training scheme
+control <- trainControl(method="repeatedcv", number=10, repeats=3)
+# train the model
+model <- train(cause_type~id + origin, data=ffires, method="lvq", preProcess="scale", trControl=control)
+# estimate variable importance
+importance <- varImp(model, scale=FALSE)
+# summarize importance
+print(importance)
+# plot importance
+plot(importance)
 
 
 
