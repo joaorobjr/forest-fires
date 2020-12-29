@@ -230,24 +230,89 @@ load("ffires.RData")
 
 df_status(ffires)
 
+
+# FEATURE SELECTION ----------------------------------------------
+
+#library(Boruta)
+
 library(caret)
 
-install.packages('Boruta')
-library(Boruta)
+ffires.rf = ffires
 
-ffires = ffires %>% select(-id, -alert_source, -alert_date, -alert_hour, -firstInterv_date, -firstInterv_hour, -extinction_date, -extinction_hour)
+ffires.rf = ffires.rf %>% select(-id, -region, -municipality, -parish, -alert_source, -alert_date, -alert_hour, -firstInterv_date, -firstInterv_hour, -extinction_date, -extinction_hour)
+ffires.rf = ffires.rf %>% filter(!is.na(extinction))
+ffires.rf = ffires.rf %>% filter(!is.na(firstInterv))
+
+#ffires$district = as.character(ffires$district)
+#ffires$municipality = as.character(ffires$municipality)
+#ffires$parish = as.character(ffires$parish)
+ffires.rf$lat = as.numeric(ffires.rf$lat)
+ffires.rf$lon = as.numeric(ffires.rf$lon)
+ffires.rf$latency_alert_ext = as.numeric(ffires.rf$latency_alert_ext)
+ffires.rf$latency_alert_interv = as.numeric(ffires.rf$latency_alert_interv)
+ffires.rf$latency_interv_ext = as.numeric(ffires.rf$latency_interv_ext)
 
 
-# load the data
-data(PimaIndiansDiabetes)
-# calculate correlation matrix
-correlationMatrix <- cor(ffires)
-# summarize the correlation matrix
-print(correlationMatrix)
-# find attributes that are highly corrected (ideally >0.75)
-highlyCorrelated <- findCorrelation(correlationMatrix, cutoff=0.5)
-# print indexes of highly correlated attributes
-print(highlyCorrelated)
+df_status(ffires.rf)
+set.seed(123456)
+idx.trainset = createDataPartition(ffires.rf$cause_type, p = 0.7, list = FALSE)
+trainSet = ffires.rf[ idx.trainset,] 
+testSet <- ffires.rf[-idx.trainset,]
+
+
+#rfFit <- train(cause_type ~ ., data = trainSet, method = "rf")
+
+outcomeName <-'cause_type'
+predictors <- names(trainSet)[!names(trainSet) %in% outcomeName] 
+rfControl <- rfeControl(functions = rfFuncs, method = "repeatedcv", repeats = 3, verbose = TRUE) 
+rfProfile <- rfe(trainSet[,predictors], trainSet[[outcomeName]], sizes=c(1:20), rfeControl = rfControl) 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+cause_pred_profile
+
+save(cause_pred_profile, file = "cause_pred_profile.RData")
+
+predictors(cause_pred_profile)
+cause_pred_profile$fit
+
+trellis.par.set(caretTheme())
+plot(cause_pred_profile, type = c("g", "o"))
+
+#Recursive feature selection 
+#Outer resampling method: Cross-Validated (10 fold, repeated 3 times) 
+#Resampling performance over subset size: 
+#  Variables Accuracy  Kappa AccuracySD KappaSD Selected 
+#4   0.7737 0.4127    0.03707 0.09962         
+#8   0.7874 0.4317    0.03833 0.11168         
+#16   0.7903 0.4527    0.04159 0.11526         
+#18   0.7882 0.4431    0.03615 0.10812         
+#The top 5 variables (out of 16): 
+#  Credit_History, LoanAmount, Loan_Amount_Term, ApplicantIncome, CoapplicantIncome 
+#Taking only the top 5 predictors predictors<-c("Credit_History", "LoanAmount", "Loan_Amount_Term", "ApplicantIncome", "CoapplicantIncome")
+
+
+
+
+rPartMod <- train(Class ~ ., data=trainData, method="rpart")
+
+
+
 
 
 
