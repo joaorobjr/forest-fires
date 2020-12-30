@@ -5,6 +5,7 @@ library(lubridate)
 library(ggplot2)
 library('rnoaa')
 library(devtools)
+library(caret)
 options(noaakey = "mqEuOSuAUjyuGlTjVjxxCpzRlbrooRnr")
 
 #Load raw data --------------------------------------------------
@@ -233,16 +234,11 @@ df_status(ffires)
 
 # FEATURE SELECTION ----------------------------------------------
 
-#library(Boruta)
-
-library(caret)
-
+# Random Forest --------------------------------------------------
 ffires.rf = ffires
-
 ffires.rf = ffires.rf %>% select(-id, -region, -municipality, -parish, -alert_source, -alert_date, -alert_hour, -firstInterv_date, -firstInterv_hour, -extinction_date, -extinction_hour)
 ffires.rf = ffires.rf %>% filter(!is.na(extinction))
 ffires.rf = ffires.rf %>% filter(!is.na(firstInterv))
-
 #ffires$district = as.character(ffires$district)
 #ffires$municipality = as.character(ffires$municipality)
 #ffires$parish = as.character(ffires$parish)
@@ -252,64 +248,100 @@ ffires.rf$latency_alert_ext = as.numeric(ffires.rf$latency_alert_ext)
 ffires.rf$latency_alert_interv = as.numeric(ffires.rf$latency_alert_interv)
 ffires.rf$latency_interv_ext = as.numeric(ffires.rf$latency_interv_ext)
 
-
 df_status(ffires.rf)
 set.seed(123456)
 idx.trainset = createDataPartition(ffires.rf$cause_type, p = 0.7, list = FALSE)
 trainSet = ffires.rf[ idx.trainset,] 
 testSet <- ffires.rf[-idx.trainset,]
 
-
-#rfFit <- train(cause_type ~ ., data = trainSet, method = "rf")
-
 outcomeName <-'cause_type'
 predictors <- names(trainSet)[!names(trainSet) %in% outcomeName] 
 rfControl <- rfeControl(functions = rfFuncs, method = "repeatedcv", repeats = 3, verbose = TRUE) 
 rfProfile <- rfe(trainSet[,predictors], trainSet[[outcomeName]], sizes=c(1:20), rfeControl = rfControl) 
 
+rfProfile
+
+save(rfProfile, file = "rfProfile.RData")
+
+predictors(rfProfile)
+rfProfile$fit
+plot(rfProfile, type = c("g", "o"))
+
+# Create Model: Random Forest
+rfFit <- train(cause_type ~ ., data = trainSet, method = "rf")
+varImp(rfFit)
+
+save(rfFit, file = "rfFit.RData")
+
+#Linear Regression ------------------------------------
+ffires.lm = ffires
+ffires.lm = ffires.lm %>% select(-id, -region, -alert_source, -alert_date, -alert_hour, -firstInterv_date, -firstInterv_hour, -extinction_date, -extinction_hour)
+ffires.lm = ffires.lm %>% filter(!is.na(extinction))
+ffires.lm = ffires.lm %>% filter(!is.na(firstInterv))
+
+df_status(ffires.lm)
+set.seed(123456)
+
+idx.trainset = createDataPartition(ffires.lm$cause_type, p = 0.7, list = FALSE)
+lmTrainSet = ffires.lm[idx.trainset,] 
+lmTestSet = ffires.lm[-idx.trainset,]
+
+outcomeName ='cause_type'
+predictors = names(lmTrainSet)[!names(lmTrainSet) %in% outcomeName] 
+
+lmControl = rfeControl(functions = lmFuncs, method = "repeatedcv", repeats = 3, verbose = TRUE) 
+lmProfile = rfe(lmTrainSet[,predictors], lmTrainSet[[outcomeName]], sizes=c(1:5,10,15,20,23), rfeControl = lmControl) 
+
+lmProfile
+
+save(lmProfile, file = "lmProfile.RData")
+
+predictors(lmProfile)
+lmProfile$fit
+plot(lmProfile, type = c("g", "o"))
+
+# Create Model: Linear Regression
+lmFit <- train(cause_type ~ ., data = lmTrainSet, method = "lm")
+varImp(lmFit)
+
+save(lmFit, file = "lmFit.RData")
+
+#Naive Bayes ------------------------------------
+ffires.nb = ffires
+ffires.nb = ffires.nb %>% select(-id, -region, -alert_source, -alert_date, -alert_hour, -firstInterv_date, -firstInterv_hour, -extinction_date, -extinction_hour)
+ffires.nb = ffires.nb %>% filter(!is.na(extinction))
+ffires.nb = ffires.nb %>% filter(!is.na(firstInterv))
+
+df_status(ffires.nb)
+set.seed(123456)
+
+idx.trainset = createDataPartition(ffires.nb$cause_type, p = 0.7, list = FALSE)
+nbTrainSet = ffires.nb[idx.trainset,] 
+nbTestSet = ffires.nb[-idx.trainset,]
+
+outcomeName ='cause_type'
+predictors = names(nbTrainSet)[!names(nbTrainSet) %in% outcomeName] 
+
+nbControl = rfeControl(functions = nbFuncs, method = "repeatedcv", repeats = 3, verbose = TRUE) 
+nbProfile = rfe(nbTrainSet[,predictors], nbTrainSet[[outcomeName]], sizes=c(1:5,10,15,20,23), rfeControl = nbControl) 
+
+nbProfile
+
+save(nbProfile, file = "nbProfile.RData")
+
+predictors(nbProfile)
+nbProfile$fit
+plot(nbProfile, type = c("g", "o"))
+
+# Create Model: Naive Bayse
+nbFit <- train(cause_type ~ ., data = nbTrainSet, method = "nb")
+varImp(nbFit)
+
+save(nbFit, file = "nbFit.RData")
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-cause_pred_profile
-
-save(cause_pred_profile, file = "cause_pred_profile.RData")
-
-predictors(cause_pred_profile)
-cause_pred_profile$fit
-
-trellis.par.set(caretTheme())
-plot(cause_pred_profile, type = c("g", "o"))
-
-#Recursive feature selection 
-#Outer resampling method: Cross-Validated (10 fold, repeated 3 times) 
-#Resampling performance over subset size: 
-#  Variables Accuracy  Kappa AccuracySD KappaSD Selected 
-#4   0.7737 0.4127    0.03707 0.09962         
-#8   0.7874 0.4317    0.03833 0.11168         
-#16   0.7903 0.4527    0.04159 0.11526         
-#18   0.7882 0.4431    0.03615 0.10812         
-#The top 5 variables (out of 16): 
-#  Credit_History, LoanAmount, Loan_Amount_Term, ApplicantIncome, CoapplicantIncome 
-#Taking only the top 5 predictors predictors<-c("Credit_History", "LoanAmount", "Loan_Amount_Term", "ApplicantIncome", "CoapplicantIncome")
-
-
-
-
-rPartMod <- train(Class ~ ., data=trainData, method="rpart")
 
 
 
