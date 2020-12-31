@@ -226,6 +226,7 @@ ffires = ffires %>% rowwise() %>%  mutate(tmin = if_else(tmin == 0 & tavg != 0 &
 ffires = as_tibble(ffires)
 
 #save(ffires, file = "ffires.RData")
+
 load("ffires.RData")
 
 df_status(ffires)
@@ -398,26 +399,43 @@ ggplot(fires.raw, aes(x = region, y = month(alert_date, label = T))) +  theme(ax
 
 
 
-
-#creating datasets of train and teste
-library(caret)
+#----------CREATING DATASETS OF TRAIN AND TEST-------
+#library(caret)
 #generate the same datasets in any computer
-set.seed(123)
+#set.seed(123)
 #generate randomly a dataset
-lines <- createDataPartition(y=ffires.rf$cause_type,p=.7,list=FALSE)
+#lines <- createDataPartition(y=ffires.rf$cause_type,p=.7,list=FALSE)
 #divide into two datasets
-ffires.rf_train <- ffires.rf %>% slice(lines)
-ffires.rf_test <- ffires.rf %>% slice(-lines)
+#ffires.rf_train <- ffires.rf %>% slice(lines)
+#ffires.rf_test <- ffires.rf %>% slice(-lines)
 
-#-------------------DECISION TREE ----------------------------
-#creating a model of decision tree
-library(rpart)
-#using cause_type variable in function of the all others and with high complexity
-modelo <- rpart(cause_type ~., data = ffires.rf_train, control = rpart.control(cp=0))
 
-#predicting
-ffires.rf_tree_test$Previsão <-predict(modelo, ffires.rf_test)
-view(ffires.rf_tree_test)
+#------------PREPARANDO DATASETS DE TREINO E TESTE---------
+ffires.rf_train <- trainSet
+ffires.rf_test <- testSet
+#---TESTE RETIRANDO ALGUMAS VARIÁVEIS----------------
+#ffires.rf_train = ffires.rf_train %>% select(-village_veget_area, -total_area, -latency_alert_interv, -latency_interv_ext, -latency_alert_ext, -tmax, -tmin)
+#ffires.rf_test = ffires.rf_test %>% select(-village_veget_area, -total_area, -latency_alert_interv, -latency_interv_ext, -latency_alert_ext, -tmax, -tmin)
+#-------------------------------------------------------
+
+
+#-------------------------DECISION TREE -----------------------
+library(rpart.plot)
+
+#destacando a variável a ser prevista
+ffires.rf_test_cause <- ffires.rf_test$cause_type
+#transformando em numerica para rodar o RMSE
+ffires.rf_test_cause <-as.numeric(as.factor(ffires.rf_test_cause))
+
+ffires.rf_test <- ffires.rf_test %>% select(-cause_type)
+treeffires.rf <- rpart(cause_type ~ .,ffires.rf_train)
+#criando a árvore e mostrando as variáveis de maior importância
+rpart.plot(treeffires.rf)
+treeffires.rf$variable.importance
+
+predsTree <- predict(treeffires.rf,ffires.rf_test)
+RMSE(predsTree,ffires.rf_test_cause)
+R2(predsTree,ffires.rf_test_cause)
 
 
 #------------------------KNN--------------------------------
@@ -426,7 +444,7 @@ ffires.rf_test_causes <- ffires.rf_test$cause_type
 ffires.rf_knn_test <- ffires.rf_test %>% select(-cause_type)
 
 #DEPOIS DO TIL TEM DE VIR NUM OU FACTORS
-knn.model <- knn3(cause_type ~ district + origin + alert + extinction, data=ffires.rf_train,k=5)
+knn.model <- knn3(cause_type ~., data=ffires.rf_train,k=71)
 
 
 #making predictions on data test
@@ -439,3 +457,60 @@ knn.confM
 #repeat the process for different k´s
 
 
+
+#--------------------------------BAYES---------------------
+library(naivebayes)
+library(e1071)
+
+
+#destacando a variável a ser prevista
+ffires.rf_test_cause <- ffires.rf_test$cause_type
+#transformando em numerica para rodar o RMSE
+#ffires.rf_test_cause <-as.numeric(as.factor(ffires.rf_test_cause))
+
+
+ffires.rf_test <- ffires.rf_test %>% select(-cause_type)
+nb.model <- naive_bayes(cause_type ~.,data=ffires.rf_train, laplace=2)
+nb.model
+nb.preds <- predict(nb.model,ffires.rf_test)
+nb.confM <- confusionMatrix(ffires.rf_test_cause,nb.preds)
+nb.confM
+
+
+#-----------------------------   SVM   -----------------------
+library(performanceEstimation)
+library(e1071)
+library(nnet)
+library(neuralnet)
+svm1 <- svm(cause_type ~ .,ffires.rf_train)
+# Estimating the accuracy of a default SVM on ffires.rf using 10 repetitions
+# of a 80%-20% Holdout
+res <- performanceEstimation(PredTask(cause_type ~ .,ffires.rf_train),
+                              Workflow(learner="svm"),
+                              EstimationTask(metrics="acc",method=Holdout(nReps=5,hldSz=0.2)))
+res
+summary(res)
+plot(res)
+
+#Using 10-fold cross validation estimate the performance of svms with dierent kernels.
+res1 <- performanceEstimation(PredTask(cause_type ~ .,ffires.rf_train),
+                             workflowVariants(learner="svm",
+                                              learner.pars=list(kernel=c("linear","polynomial","radial","sigmoid"))),
+                             EstimationTask(metrics="acc",method=Holdout(nReps=5,hldSz=0.2)))
+res1
+summary(res1)
+plot(res1)
+
+#Using 10-fold cross validation estimate the performance of svms with parameters cost=1:5,
+#gamma=c(0.1,0.01).
+res2 <- performanceEstimation(PredTask(cause_type ~ .,ffires.rf_train),
+                             workflowVariants(learner="svm",
+                                              learner.pars=list(cost=1:5,
+                                                                gamma=c(0.1,0.01))),
+                             EstimationTask(metrics="acc",method=CV()))
+topPerformers(res2,max=TRUE)
+getWorkflow("svm.v5",res2)
+pres <- pairedComparisons(res2)
+signifDiffs(pres)
+pres <- pairedComparisons(res2,baseline = "svm.v5")
+signifDiffs(pres)
