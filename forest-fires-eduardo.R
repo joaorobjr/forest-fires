@@ -5,6 +5,14 @@ library(lubridate)
 library(ggplot2)
 library('rnoaa')
 library(devtools)
+library(mlbench)
+library(caret)
+library(performanceEstimation)
+library(e1071)
+library(nnet)
+library(neuralnet)
+library(naivebayes)
+library(rpart.plot)
 options(noaakey = "mqEuOSuAUjyuGlTjVjxxCpzRlbrooRnr")
 
 #Load raw data --------------------------------------------------
@@ -234,26 +242,24 @@ df_status(ffires)
 
 # FEATURE SELECTION ----------------------------------------------
 
-#library(Boruta)
-
-library(caret)
-
+#renaming the dataset
 ffires.rf = ffires
-
+#extracting variables to minimize the dataset
+#parish and municipality have many observations differents
+#id can be retired because is the number of the lines
+#region has 501 NA´s and alert_source only has NA´s
 ffires.rf = ffires.rf %>% select(-id, -region, -municipality, -parish, -alert_source, -alert_date, -alert_hour, -firstInterv_date, -firstInterv_hour, -extinction_date, -extinction_hour)
 ffires.rf = ffires.rf %>% filter(!is.na(extinction))
 ffires.rf = ffires.rf %>% filter(!is.na(firstInterv))
 
-#ffires$district = as.character(ffires$district)
-#ffires$municipality = as.character(ffires$municipality)
-#ffires$parish = as.character(ffires$parish)
+#changing to numeric
 ffires.rf$lat = as.numeric(ffires.rf$lat)
 ffires.rf$lon = as.numeric(ffires.rf$lon)
 ffires.rf$latency_alert_ext = as.numeric(ffires.rf$latency_alert_ext)
 ffires.rf$latency_alert_interv = as.numeric(ffires.rf$latency_alert_interv)
 ffires.rf$latency_interv_ext = as.numeric(ffires.rf$latency_interv_ext)
 
-
+#creating train and test datasets
 df_status(ffires.rf)
 set.seed(123456)
 idx.trainset = createDataPartition(ffires.rf$cause_type, p = 0.7, list = FALSE)
@@ -321,8 +327,7 @@ rPartMod <- train(Class ~ ., data=trainData, method="rpart")
 #Remove Redundant Features
 set.seed(7)
 # load the library
-library(mlbench)
-library(caret)
+
 # load the data
 #data(ffires)
 # calculate correlation matrix: village_area until total_area
@@ -361,7 +366,7 @@ plot(importance)
 
 
 #loading graphics library
-library(ggplot2)
+
 
 #bar plot of forests fires during 2015
 # Conclusion: july and august were the months with a great number of ocurrences
@@ -418,18 +423,17 @@ ffires.rf_test <- testSet
 #ffires.rf_test = ffires.rf_test %>% select(-village_veget_area, -total_area, -latency_alert_interv, -latency_interv_ext, -latency_alert_ext, -tmax, -tmin)
 #-------------------------------------------------------
 
-
 #-------------------------DECISION TREE -----------------------
-library(rpart.plot)
-
-#destacando a variável a ser prevista
+ffires.rf_train <- trainSet
+ffires.rf_test <- testSet
+#variable to be predicted
 ffires.rf_test_cause <- ffires.rf_test$cause_type
-#transformando em numerica para rodar o RMSE
+#changing to numeric because of the RMSE
 ffires.rf_test_cause <-as.numeric(as.factor(ffires.rf_test_cause))
 
 ffires.rf_test <- ffires.rf_test %>% select(-cause_type)
 treeffires.rf <- rpart(cause_type ~ .,ffires.rf_train)
-#criando a árvore e mostrando as variáveis de maior importância
+#creating the tree and showing more important variables
 rpart.plot(treeffires.rf)
 treeffires.rf$variable.importance
 
@@ -439,12 +443,16 @@ R2(predsTree,ffires.rf_test_cause)
 
 
 #------------------------KNN--------------------------------
+ffires.rf_train <- trainSet
+ffires.rf_test <- testSet
 #creating a model of knn
 ffires.rf_test_causes <- ffires.rf_test$cause_type
 ffires.rf_knn_test <- ffires.rf_test %>% select(-cause_type)
 
+
+
 #DEPOIS DO TIL TEM DE VIR NUM OU FACTORS
-knn.model <- knn3(cause_type ~., data=ffires.rf_train,k=71)
+knn.model <- knn3(cause_type ~., data=ffires.rf_train,k=19)
 
 
 #making predictions on data test
@@ -459,31 +467,32 @@ knn.confM
 
 
 #--------------------------------BAYES---------------------
-library(naivebayes)
-library(e1071)
+ffires.rf_train <- trainSet
+ffires.rf_test <- testSet
+#all the variables have to be numerics
+ffires.rf_train$district <-as.numeric(as.factor(ffires.rf_train$district))
+ffires.rf_train$origin <-as.numeric(as.factor(ffires.rf_train$origin))
+ffires.rf_test$district <-as.numeric(as.factor(ffires.rf_test$district))
+ffires.rf_test$origin <-as.numeric(as.factor(ffires.rf_test$origin))
+ffires.rf_train = ffires.rf_train %>% select(-alert, -extinction, -firstInterv)
+ffires.rf_test = ffires.rf_test %>% select(-alert, -extinction, -firstInterv)
 
-
-#destacando a variável a ser prevista
+#variable to be predicted
 ffires.rf_test_cause <- ffires.rf_test$cause_type
-#transformando em numerica para rodar o RMSE
-#ffires.rf_test_cause <-as.numeric(as.factor(ffires.rf_test_cause))
-
 
 ffires.rf_test <- ffires.rf_test %>% select(-cause_type)
-nb.model <- naive_bayes(cause_type ~.,data=ffires.rf_train, laplace=2)
+nb.model <- naive_bayes(cause_type ~.,data=ffires.rf_train, laplace=1)
 nb.model
 nb.preds <- predict(nb.model,ffires.rf_test)
 nb.confM <- confusionMatrix(ffires.rf_test_cause,nb.preds)
 nb.confM
-
+#laplace was changed but don´t altered the result so much
 
 #-----------------------------   SVM   -----------------------
-library(performanceEstimation)
-library(e1071)
-library(nnet)
-library(neuralnet)
+ffires.rf_train <- trainSet
+ffires.rf_test <- testSet
 svm1 <- svm(cause_type ~ .,ffires.rf_train)
-# Estimating the accuracy of a default SVM on ffires.rf using 10 repetitions
+# Estimating the accuracy of a default SVM on ffires.rf using 5 repetitions
 # of a 80%-20% Holdout
 res <- performanceEstimation(PredTask(cause_type ~ .,ffires.rf_train),
                               Workflow(learner="svm"),
@@ -492,14 +501,19 @@ res
 summary(res)
 plot(res)
 
-#Using 10-fold cross validation estimate the performance of svms with dierent kernels.
+#Using 10-fold cross validation estimate the performance of svms with different kernels.
 res1 <- performanceEstimation(PredTask(cause_type ~ .,ffires.rf_train),
                              workflowVariants(learner="svm",
                                               learner.pars=list(kernel=c("linear","polynomial","radial","sigmoid"))),
                              EstimationTask(metrics="acc",method=Holdout(nReps=5,hldSz=0.2)))
+
+
 res1
 summary(res1)
 plot(res1)
+#finding the best performance
+topPerformers(res1,max=TRUE)
+getWorkflow("svm.v1",res1)
 
 #Using 10-fold cross validation estimate the performance of svms with parameters cost=1:5,
 #gamma=c(0.1,0.01).
@@ -508,9 +522,47 @@ res2 <- performanceEstimation(PredTask(cause_type ~ .,ffires.rf_train),
                                               learner.pars=list(cost=1:5,
                                                                 gamma=c(0.1,0.01))),
                              EstimationTask(metrics="acc",method=CV()))
+#finding the best performance
 topPerformers(res2,max=TRUE)
-getWorkflow("svm.v5",res2)
-pres <- pairedComparisons(res2)
+getWorkflow("svm.v1",res2)
+#pres <- pairedComparisons(res2)
 signifDiffs(pres)
-pres <- pairedComparisons(res2,baseline = "svm.v5")
-signifDiffs(pres)
+#pres <- pairedComparisons(res2,baseline = "svm.v1")
+#signifDiffs(pres)
+
+#------------------------NEURAL NETWORKS----------------------
+ffires.rf_train <- trainSet
+ffires.rf_test <- testSet
+ffires.rf_train_num = ffires.rf_train
+#only works with numeric variables
+ffires.rf_train_num$district <-as.numeric(as.factor(ffires.rf_train_num$district))
+ffires.rf_train_num$origin <-as.numeric(as.factor(ffires.rf_train_num$origin))
+ffires.rf_train_num = ffires.rf_train_num %>% select(-alert, -extinction, -firstInterv)
+
+m <- neuralnet(cause_type ~.,ffires.rf_train_num,hidden=1)
+m
+plot(m)
+m <- nnet(cause_type ~.,ffires.rf_train_num,size=1,maxit=200)
+#res <- performanceEstimation(PredTask(cause_type ~.,ffires.rf_train_num),
+#                             workflowVariants(learner="nnet", learner.pars=list(size=1:(ncol(ffires.rf_train_num)-1))),
+#                            EstimationTask(metrics="mae"))
+
+#ffires.rf_scaled <- tbl_df(ffires.rf_train_num) %>%
+#  mutate_at(vars(-cause_type),scale)
+#res <- performanceEstimation(PredTask(cause_type ~.,ffires.rf_scaled),
+#                             workflowVariants(learner="nnet", learner.pars=list(size=1:(ncol(ffires.rf_train_num)-1))),
+#                             EstimationTask(metrics="mae"))
+#plot(res)
+
+#----------------------------------XGBOOST-----------------------------
+
+library(xgboost)
+ffires.rf_train <- trainSet
+ffires.rf_train$cause_type <- as.integer(ffires.rf_train$cause_type)-1
+m2 <- xgboost(data = data.matrix(ffires.rf_train[,-10]),
+              label = ffires.rf_train$cause_type,
+              #max.depth = 2, eta = 1, nthread = 2,
+              nrounds = 10, num_class=6,
+              objective="multi:softprob")
+ps <- predict(m2,data.matrix(ffires.rf_train[,-10]),reshape=T)
+ps.labels <- max.col(ps)
