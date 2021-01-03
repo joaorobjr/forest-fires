@@ -4,6 +4,21 @@ subtitle: "Practical Assignment of Data Mining I"
 author: "By Robson Teixeira, Eduardo Rodrigues and Claudio Rocha"
 date: "M:CC -- FCUP, 10/01/2021"
 output:
+  pdf_document:
+    #citation_package: natbib
+    df_print: tibble
+    fig_caption: yes
+    fig_crop: no
+    fig_height: 5
+    fig_width: 7
+    number_sections: yes
+    toc: yes
+  html_notebook: 
+    code_folding: hide
+    df_print: default
+    number_sections: yes
+    toc: yes
+    toc_float: yes
   html_document:
     #df_print: paged
     code_folding: "hide"
@@ -15,21 +30,6 @@ output:
     theme: cerulean
     toc: yes
     toc_float: yes
-  html_notebook: 
-    code_folding: hide
-    df_print: default
-    number_sections: yes
-    toc: yes
-    toc_float: yes
-  pdf_document:
-    #citation_package: natbib
-    df_print: tibble
-    fig_caption: yes
-    fig_crop: no
-    fig_height: 5
-    fig_width: 7
-    number_sections: yes
-    toc: yes
 geometry:
 - top=25mm
 - bottom=25mm
@@ -74,10 +74,18 @@ knitr::opts_chunk$set(echo= T, warning= F, message= F)
 require(tidyverse)
 require(funModeling)
 require(measurements)
-require(ggplot2)
 require(lubridate)
+require(ggplot2)
+library('rnoaa')
 require(devtools)
+require(mlbench)
 require(caret)
+require(performanceEstimation)
+require(e1071)
+require(nnet)
+require(neuralnet)
+require(naivebayes)
+require(rpart.plot)
 
 # turns off scientific notation; to turn it back on, use scipen= 0
 options(scipen= 999)
@@ -132,7 +140,7 @@ The dataset used in this study was provided by ICFN, and it contains the data on
 
 * **fires2015train.csv** --- the file contain the data of 7511 reported forest fires during 2015
 
-A summary of the structure of it and a glimpse of their first rows is provided below.
+A summary of the structure of it and a glimpse of their first rows are provided below.
 ```{r fires.raw-summary, echo = F}
 glimpse(fires.raw)
 head(fires.raw)
@@ -171,6 +179,54 @@ village_veget_area|numeric     |total village+veget affected  |
 total_area        |numeric     |total area affected           |
 cause_type        |character   |cause of the fire             |
 
+##Graphic analysis
+1- Bar plot of forests fires during 2015
+```{r }
+ggplot(fires.raw, aes(x = month(alert_date, label = T))) +
+  geom_bar(fill = "red") +
+  ggtitle("Distribution of forests fires across 2015") +
+  labs(x="Months", y="Total")
+```
+Conclusion: july and august were the months with a great number of ocurrences
+
+2- bar plot of forests fires during 2015 by region
+```{r }
+ggplot(fires.raw, aes(x = region)) +  theme(axis.text.x = element_text(angle = 90)) + geom_bar() + ggtitle("Distribution of forests fires by region") +
+  labs(x="Region", y="Total")
+```
+Conclusion: Entre Douro e Minho was the region with mores forests fires
+
+3- bar plot of forests fires during 2015 by district
+```{r }
+ggplot(fires.raw, aes(x = district)) +  theme(axis.text.x = element_text(angle = 90))+geom_bar() + ggtitle("Distribution of forests fires by district") +
+  labs(x="District", y="Total")
+```
+Porto was the district with more forests fires
+
+4- bar plot of forests fires during 2015 by causes
+```{r }
+ggplot(fires.raw, aes(x = cause_type)) + geom_bar(color = "black", fill = "light blue") + ggtitle("Distribution of causes of fires")+
+  labs(x="Causes of Fires", y="Total")
+```
+negligence was the big cause of the forests fires
+
+5- bar plot of forests fires during 2015 by origin
+```{r }
+ggplot(fires.raw, aes(x = origin)) + geom_bar(fill = "blue") + ggtitle("Distribution of forests fires by origin across 2015")+
+  labs(x="Origin", y="Total")
+```
+firepit was the origin of the most forests fires
+
+6- Relationship between district, month and causes
+```{r }
+ggplot(fires.raw, aes(x = district, y = month(alert_date, label = T))) +  theme(axis.text.x = element_text(angle = 90)) + geom_point(aes(color = cause_type)) + ggtitle("Relationship between district, month and cause_type")+
+  labs(x="District", y="Months")
+```
+
+7- Relationship between region, month and causes
+```{r }
+ggplot(fires.raw, aes(x = region, y = month(alert_date, label = T))) +  theme(axis.text.x = element_text(angle = 90)) + geom_point(aes(color = cause_type)) + ggtitle("Relationship between region and month") + labs(x="Region", y="Months")
+```
 
 # Data Preparation
 
@@ -182,11 +238,11 @@ anyDuplicated(fires.raw)
 ```
 The result was negative.
 
-The lat variable had to be corrected because we observed that there were incorrect values like a date mixed in it.
+The lat variable had to be corrected because we observed that incorrect values like a date were mixed in it.
 ```{r echo=FALSE}
 idx.lat.wrong = which(str_detect(fires.raw$lat, '1900-01-01'))
 lat.wrong = fires.raw[idx.lat.wrong,]
-head(lat.wrong)
+#head(select(lat.wrong$lat, lat.wrong$lon))
 ```
 
 The number of observations with wrong value in lat variable were detected and the total number of them is showed below.
@@ -194,7 +250,7 @@ The number of observations with wrong value in lat variable were detected and th
 print(str_c("There are",length(idx.lat.wrong),"observations with wrong value '1900-01-01'", sep = " "))
 ```
 
-In the wrong values, an imputation was made based on another observation that has the same region, district, municipality and parish than these. After the imputation 8 NA values were assigned to observations.
+On the wrong values, an imputation was made based on another observation that has the same region, district, municipality and parish than these.
 ```{r echo=FALSE}
 for (idx in idx.lat.wrong) {
   df_temp = fires.raw[-idx.lat.wrong,] %>% 
@@ -208,13 +264,121 @@ for (idx in idx.lat.wrong) {
 rm(df_temp)
 ```
 
-It was necessary to do a cleaning on lat and lon variables and convert their contents from GPS coodinate to decimals.Before the transformation they were like below:
+Cleaning lat and lon variables and convert from GPS coordinate to decimals
+```{r echo=FALSE}
+vec_clean <- c("''"="", "E-12"="", "E-11"="", "E-02"="", ","=".", "º"=" ", "'"=" ", ":"=" ")
+fires.raw$lat <- conv_unit(str_replace_all(str_trim(fires.raw$lat), vec_clean), "deg_min_sec", "dec_deg")
+```
 
-first lines of lat variable
+An warning occurred when this line was executed.
+```{r echo=FALSE}
+fires.raw$lon <- conv_unit(str_replace_all(str_trim(fires.raw$lon, side = "both"), vec_clean), "deg_min_sec", "dec_deg")
+# Workaround
+fires.raw$lon[7511] <- conv_unit("8 34 21.5868000000013", "deg_min_sec", "dec_deg")
+```
+
+After the imputation, 8 NAs values were assign to observations in latitude and longitude variables
+
+Insert latitude and longitude for parish with missing values
+```{r echo=FALSE}
+idx.latlon.na = which(is.na(fires.raw$lat) & is.na(fires.raw$lon))
+latlon.na = fires.raw[idx.latlon.na,]
+#head(select(latlon.na$parish, latlon.na$lat, latlon.na$lon))
+```
+Alentejo - Évora - Mora - Cabeção
+```{r echo=FALSE}
+fires.raw$lat[439] = 38.954167
+fires.raw$lon[439] = -8.072778
+```
+
+Alentejo -	Évora - Montemor-o-Novo - Cortiçadas de Lavre
+```{r echo=FALSE}
+fires.raw$lat[1722] = 38.786577
+fires.raw$lon[1722] = -8.432094
+```
+
+Alentejo - Évora - Montemor-o-Novo - Ciborro
+```{r echo=FALSE}
+fires.raw$lat[2633] = 38.800833
+fires.raw$lon[2633] = -8.228056
+```
+
+Alentejo -	Évora -	Mourão - Granja
+```{r echo=FALSE}
+fires.raw$lat[3007] = 38.3 
+fires.raw$lon[3007] = -7.255
+```
+
+Alentejo -	Évora -	Évora	- Horta das Figueiras
+```{r echo=FALSE}
+fires.raw$lat[3443] = 38.545
+fires.raw$lon[3443] = -7.905556
+```
+
+Alentejo -	Évora - Montemor-o-Novo - Cortiçadas de Lavre
+```{r echo=FALSE}
+fires.raw$lat[3586] = 38.786577
+fires.raw$lon[3586] = -8.432094
+```
+
+Alentejo - Évora - Estremoz - São Lourenço de Mamporcão	
+```{r echo=FALSE}
+fires.raw$lat[5284] = 38.890833
+fires.raw$lon[5284] = -7.545833
+```
+
+Alentejo - Évora - Mora - Brotas
+```{r echo=FALSE}
+fires.raw$lat[7228] = 38.873056
+fires.raw$lon[7228] = -8.15
+```
+
+Data imputation: firstInterv_date and firstInterv_hour
+```{r echo=FALSE}
+fires.raw <- fires.raw %>% rowwise() %>% mutate(firstInterv_date = if_else( is.na(firstInterv_date) && !is.na(extinction_date), extinction_date , firstInterv_date),
+                                                firstInterv_hour = if_else( is.na(firstInterv_hour) && !is.na(extinction_hour), extinction_hour , firstInterv_hour))
+```
+
+Changing type of some variables to factor 
+```{r echo=FALSE}
+fires.raw$region = as.factor(fires.raw$region)
+fires.raw$district = as.factor(fires.raw$district)
+fires.raw$municipality = as.factor(fires.raw$municipality)
+fires.raw$parish = as.factor(fires.raw$parish)
+fires.raw$origin = as.factor(fires.raw$origin)
+fires.raw$cause_type = as.factor(fires.raw$cause_type)
+```
+
+Creating new features
+
+Variable alert 
+```{r echo=FALSE}
+fires.raw <- fires.raw %>% rowwise() %>% 
+  mutate(alert = ymd_hms(str_c(alert_date, alert_hour, sep=" ")),
+         extinction = ymd_hms(str_c(extinction_date, extinction_hour, sep=" ")),
+         firstInterv = ymd_hms(str_c(firstInterv_date, firstInterv_hour, sep=" ")),
+         latency_alert_interv = (firstInterv - alert)/60,
+         latency_interv_ext = (extinction - firstInterv)/60,
+         latency_alert_ext = (extinction - alert)/60)
+
+fires.raw <- as_tibble(fires.raw)
+df_status(fires.raw)
+```
+
+Marking a check point
+```{r echo=FALSE}
+#save(fires.raw, file = "fires.raw.RData")
+load("fires.raw.RData")
+```
+
+----------------------------------XXXXXXXXXXXXXXXXXX----------------------
+
+It was necessary to do a cleaning on lat and lon variables and convert their contents from GPS coordinate to decimals.Before the transformation they were like below:
+
 ```{r echo=FALSE}
 head(fires.raw$lat)
 ```
-first lines of lon variable
+
 ```{r echo=FALSE}
 head(fires.raw$lon)
 ```
@@ -230,19 +394,18 @@ fires.raw$lon[7511] <- conv_unit("8 34 21.5868000000013", "deg_min_sec", "dec_de
 
 After the transformation, the values were corrected.
 
-first lines of lat variable
+Here are the first lines of lat variable
 ```{r echo=FALSE}
 head(fires.raw$lat)
 ```
-first lines of lon variable
+and here are the first lines of lon variable
 ```{r echo=FALSE}
 head(fires.raw$lon)
 ```
 
-
-#------------------------------XXXX---------------------------------
+---------------???????????????????????????????---------------------
+Data imputation: firstInterv_date and firstInterv_hour
 ```{r echo=FALSE}
-# Data imputation: firstInterv_date and firstInterv_hour
 fires.raw <- fires.raw %>% rowwise() %>% mutate(firstInterv_date = if_else( is.na(firstInterv_date) && !is.na(extinction_date), extinction_date , firstInterv_date),firstInterv_hour = if_else( is.na(firstInterv_hour) && !is.na(extinction_hour), extinction_hour , firstInterv_hour))
 ```
 
@@ -257,35 +420,177 @@ fires.raw$cause_type = as.factor(fires.raw$cause_type)
 glimpse(fires.raw)
 ```
 
+Creating new features
+Variable alert 
+```{r echo=FALSE}
+fires.raw <- fires.raw %>% rowwise() %>% 
+  mutate(alert = ymd_hms(str_c(alert_date, alert_hour, sep=" ")),
+         extinction = ymd_hms(str_c(extinction_date, extinction_hour, sep=" ")),
+         firstInterv = ymd_hms(str_c(firstInterv_date, firstInterv_hour, sep=" ")),
+         latency_alert_interv = (firstInterv - alert)/60,
+         latency_interv_ext = (extinction - firstInterv)/60,
+         latency_alert_ext = (extinction - alert)/60)
 
+fires.raw <- as_tibble(fires.raw)
+df_status(fires.raw)
+```
 
-
-Changing the scale or distribution of variables.
-
-```{r}
-
+-------------save(fires.raw, file = "fires.raw.RData")-----
+```{r echo=FALSE}
+load("fires.raw.RData")
 ```
 
 ## Feature Engineering
 Deriving new variables from available data.
+MERGE WEATHER DATA AND FOREST FIRES --------------------------------------------
+```{r echo=FALSE}
+load("data/station_data.Rdata")
 
-```{r}
+get_nearby_stations = function (df, measure){
+  nearby_stations = meteo_nearby_stations(lat_lon_df = df,
+                                          station_data = station_data, 
+                                          radius = 1000, 
+                                          var = measure,
+                                          year_min = 2014, year_max = 2015,
+                                          limit = 5)
+  return(nearby_stations)
+}
 
+fires.raw = fires.raw %>% mutate(tavg = 0, tavg15d = 0, tmax = 0, tmin = 0, prcp = 0)
+
+fires = distinct(fires.raw, parish, lat, lon, alert_date)
+
+for (i in 1:dim(fires)[1]) {
+  fire = fires[i,]
+  idx = which(fires.raw$parish == fire$parish & fires.raw$lat == fire$lat & fires.raw$lon == fire$lon & fires.raw$alert_date == fire$alert_date)
+  print(idx)
+  df = data.frame(id=fire$parish, latitude=fire$lat, longitude=fire$lon, stringsAsFactors = F)
+  stations = get_nearby_stations(df, c("TAVG", "TMAX", "TMIN", "PRCP"))
+  
+  # Set TAVG
+  for(j in 1:dim(stations[[1]])[1] ){
+    wd = ghcnd_search(stations[[1]]$id[j], var = "TAVG", date_min = fire$alert_date, date_max = fire$alert_date)
+    if(!is.null(wd$tavg) && nrow(wd$tavg)>0 && !is.na(wd$tavg$tavg) && wd$tavg$tavg > 0){
+      tavg = wd$tavg$tavg
+      #print(str_c("Data: ", fire$alert_date, " tavg: ", tavg))
+      fires.raw[idx,]$tavg = tavg/10
+      break()
+    }
+  }
+  
+  dt_ini = as.character(as.Date(fire$alert_date) - ddays(15))
+  
+  # Set TAVG15D
+  for(j in 1:dim(stations[[1]])[1] ){
+    wd = ghcnd_search(stations[[1]]$id[j], var = "TAVG", date_min = dt_ini, date_max = fire$alert_date)
+    if(!is.null(wd$tavg) && nrow(wd$tavg)>0){
+      tavg15d = mean(wd$tavg$tavg, na.rm = TRUE)
+      #print(str_c("Data: ", fire$alert_date, " tavg15d: ", tavg15d))
+      fires.raw[idx,]$tavg15d = tavg15d/10
+      break()
+    }
+  }
+  
+  # Set TMAX
+  for(j in 1:dim(stations[[1]])[1] ){
+    wd = ghcnd_search(stations[[1]]$id[j], var = "TMAX", date_min = fire$alert_date, date_max = fire$alert_date)
+    if(!is.null(wd$tmax) && nrow(wd$tmax)>0 && !is.na(wd$tmax$tmax) && wd$tmax$tmax > 0){
+      tmax = wd$tmax$tmax
+      #print(str_c("Data: ", fire$alert_date, " tmax: ", tmax))
+      fires.raw[idx,]$tmax = tmax/10
+      break()
+    }
+  }
+  
+  # Set TMIN
+  for(j in 1:dim(stations[[1]])[1] ){
+    wd = ghcnd_search(stations[[1]]$id[j], var = "TMIN", date_min = fire$alert_date, date_max = fire$alert_date)
+    if(!is.null(wd$tmin) && nrow(wd$tmin)>0 && !is.na(wd$tmin$tmin) && wd$tmin$tmin > 0){
+      tmin = wd$tmin$tmin
+      #print(str_c("Data: ", fire$alert_date, " tmin: ", tmin))
+      fires.raw[idx,]$tmin = tmin/10
+      break()
+    }
+  }
+  
+  # Set PRCP
+  for(j in 1:dim(stations[[1]])[1] ){
+    wd = ghcnd_search(stations[[1]]$id[j], var = "PRCP", date_min = fire$alert_date, date_max = fire$alert_date)
+    if(!is.null(wd$prcp) && nrow(wd$prcp)>0 && !is.na(wd$prcp$prcp) && wd$prcp$prcp > 0){
+      prcp = wd$prcp$prcp
+      #print(str_c("Data: ", fire$alert_date, " prcp: ", prcp))
+      fires.raw[idx,]$prcp = prcp/10
+      break()
+    }
+  }
+}
+
+ffires = as_tibble( fires.raw)
 ```
+
+We did an imputation of value in tavg variable based on tmax and tmin,
+in tavg variable based on tavg15d, in tavg15d variable if NaN,
+in tmax variable based on tavg and tmin, in tmin variable based on tavg and tmax
+```{r echo = FALSE}
+ffires = ffires %>% rowwise() %>%  mutate(tavg = if_else(tavg == 0 & tmax != 0 & tmin != 0, (tmax+tmin)/2, tavg))
+
+ffires = ffires %>% rowwise() %>%  mutate(tavg = if_else(tavg == 0 & tavg15d != 0, tavg15d, tavg))
+
+ffires = ffires %>% rowwise() %>%  mutate(tavg15d = if_else(is.nan(tavg15d), 0, tavg15d))
+
+ffires = ffires %>% rowwise() %>%  mutate(tmax = if_else(tmax == 0 & tavg != 0 & tmin != 0, (2*tavg)-tmin, tmax))
+
+ffires = ffires %>% rowwise() %>%  mutate(tmin = if_else(tmin == 0 & tavg != 0 & tmax != 0, (2*tavg)-tmax, tmin))
+
+ffires = as_tibble(ffires)
+
+#save(ffires, file = "ffires.RData")
+
+load("ffires.RData")
+
+df_status(ffires)
+```
+
 
 ## Feature Selection
 Identifying those input variables that are most relevant to the task.
-```{r}
-
+First, we rename the dataset and extracted some variables to minimize it.
+The variables "parish" and "municipality" have many diferent observations,
+"id" can be retired because it is only the number of the lines of dataset and we don´t need this column, "region" has 501 NA´s and we don´t have how to substitute them, "alert_source" only has NA´s and it can be removed.
+```{r echo = FALSE}
+ffires.rf = ffires
+ffires.rf = ffires.rf %>% select(-id, -region, -municipality, -parish, -alert_source, -alert_date, -alert_hour, -firstInterv_date, -firstInterv_hour, -extinction_date, -extinction_hour)
+ffires.rf = ffires.rf %>% filter(!is.na(extinction))
+ffires.rf = ffires.rf %>% filter(!is.na(firstInterv))
 ```
+
+changing to numeric
+```{r echo = FALSE}
+ffires.rf$lat = as.numeric(ffires.rf$lat)
+ffires.rf$lon = as.numeric(ffires.rf$lon)
+ffires.rf$latency_alert_ext = as.numeric(ffires.rf$latency_alert_ext)
+ffires.rf$latency_alert_interv = as.numeric(ffires.rf$latency_alert_interv)
+ffires.rf$latency_interv_ext = as.numeric(ffires.rf$latency_interv_ext)
+```
+
+##Creating train and test datasets
+```{r echo = FALSE}
+df_status(ffires.rf)
+set.seed(123456)
+idx.trainset = createDataPartition(ffires.rf$cause_type, p = 0.7, list = FALSE)
+trainSet = ffires.rf[ idx.trainset,] 
+testSet <- ffires.rf[-idx.trainset,]
+```
+
+
 
 
 ## Dimensionality Reduction
 Creating compact projections of the data.
 
 
-
 # Exploratory Data Analysis
+
 
 # Conclusions, Shortcomings and Future Work
 

@@ -1660,7 +1660,7 @@ div.tocify {
 <ul>
 <li><strong>fires2015train.csv</strong> — the file contain the data of 7511 reported forest fires during 2015</li>
 </ul>
-<p>A summary of the structure of it and a glimpse of their first rows is provided below.</p>
+<p>A summary of the structure of it and a glimpse of their first rows are provided below.</p>
 <pre><code>## Rows: 7,511
 ## Columns: 21
 ## $ id                 &lt;int&gt; 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 1...
@@ -1894,25 +1894,85 @@ div.tocify {
 <p>We started to verify the dataset to identify and correct the mistakes or errors in the data. First we tested if there were duplicated observations.</p>
 <pre><code>## [1] 0</code></pre>
 <p>The result was negative.</p>
-<p>The lat variable had to be corrected because we observed that there were incorrect values like a date mixed in it.</p>
-<pre><code>## # A tibble: 6 x 21
-##      id region district municipality parish lat   lon   origin alert_date
-##   &lt;int&gt; &lt;chr&gt;  &lt;chr&gt;    &lt;chr&gt;        &lt;chr&gt;  &lt;chr&gt; &lt;chr&gt; &lt;chr&gt;  &lt;chr&gt;     
-## 1   102 Alent~ Évora    Reguengos d~ Campo  1900~ 07:3~ agric~ 2015-05-20
-## 2   439 Alent~ Évora    Mora         Cabeç~ 1900~ 08:0~ agric~ 2015-05-16
-## 3   486 Algar~ Faro     Silves       São B~ 1900~ 00:0~ firep~ 2015-05-21
-## 4   963 Algar~ Faro     Lagos        Bensa~ 1900~ 00:0~ fire   2015-05-14
-## 5  1512 Alent~ Évora    Vendas Novas Venda~ 1900~ 00:0~ fire   2015-05-19
-## 6  1658 Algar~ Faro     Lagos        São S~ 1900~ 08:4~ agric~ 2015-07-26
-## # ... with 12 more variables: alert_hour &lt;chr&gt;, extinction_date &lt;chr&gt;,
-## #   extinction_hour &lt;chr&gt;, firstInterv_date &lt;chr&gt;, firstInterv_hour &lt;chr&gt;,
-## #   alert_source &lt;lgl&gt;, village_area &lt;dbl&gt;, vegetation_area &lt;dbl&gt;,
-## #   farming_area &lt;dbl&gt;, village_veget_area &lt;dbl&gt;, total_area &lt;dbl&gt;,
-## #   cause_type &lt;chr&gt;</code></pre>
+<p>The lat variable had to be corrected because we observed that incorrect values like a date were mixed in it.</p>
 <p>The number of observations with wrong value in lat variable were detected and the total number of them is showed below.</p>
 <pre><code>## [1] &quot;There are 38 observations with wrong value &#39;1900-01-01&#39;&quot;</code></pre>
-<p>In the wrong values, an imputation was made based on another observation that has the same region, district, municipality and parish than these. After the imputation 8 NA values were assigned to observations.</p>
-<p>It was necessary to do a cleaning on lat and lon variables and convert their contents from GPS coodinate to decimals.Before the transformation they were like below:</p>
+<p>On the wrong values, an imputation was made based on another observation that has the same region, district, municipality and parish than these.</p>
+<p>Cleaning lat and lon variables and convert from GPS coordinate to decimals</p>
+<p>An warning occurred when this line was executed.</p>
+<p>After the imputation, 8 NAs values were assign to observations in latitude and longitude variables</p>
+<p>Insert latitude and longitude for parish with missing values</p>
+<p>Alentejo - Évora - Mora - Cabeção</p>
+<p>Alentejo - Évora - Montemor-o-Novo - Cortiçadas de Lavre</p>
+<p>Alentejo - Évora - Montemor-o-Novo - Ciborro</p>
+<p>Alentejo - Évora - Mourão - Granja</p>
+<p>Alentejo - Évora - Évora - Horta das Figueiras</p>
+<p>Alentejo - Évora - Montemor-o-Novo - Cortiçadas de Lavre</p>
+<p>Alentejo - Évora - Estremoz - São Lourenço de Mamporcão</p>
+<p>Alentejo - Évora - Mora - Brotas</p>
+<p>Data imputation: firstInterv_date and firstInterv_hour</p>
+<p>Changing type of some variables to factor</p>
+<p>Creating new features</p>
+<p>Variable alert</p>
+<pre><code>##                variable q_zeros p_zeros q_na   p_na q_inf p_inf           type
+## 1                    id       0    0.00    0   0.00     0     0        integer
+## 2                region       0    0.00  501   6.67     0     0         factor
+## 3              district       0    0.00    0   0.00     0     0         factor
+## 4          municipality       0    0.00    0   0.00     0     0         factor
+## 5                parish       0    0.00    0   0.00     0     0         factor
+## 6                   lat       0    0.00    0   0.00     0     0      character
+## 7                   lon       0    0.00    0   0.00     0     0      character
+## 8                origin       0    0.00    0   0.00     0     0         factor
+## 9            alert_date       0    0.00    0   0.00     0     0      character
+## 10           alert_hour       0    0.00    0   0.00     0     0      character
+## 11      extinction_date       0    0.00    9   0.12     0     0      character
+## 12      extinction_hour       0    0.00    9   0.12     0     0      character
+## 13     firstInterv_date       0    0.00    7   0.09     0     0      character
+## 14     firstInterv_hour       0    0.00    7   0.09     0     0      character
+## 15         alert_source       0    0.00 7511 100.00     0     0        logical
+## 16         village_area    5349   71.22    0   0.00     0     0        numeric
+## 17      vegetation_area    2648   35.25    0   0.00     0     0        numeric
+## 18         farming_area    5976   79.56    0   0.00     0     0        numeric
+## 19   village_veget_area    1413   18.81    0   0.00     0     0        numeric
+## 20           total_area       8    0.11    0   0.00     0     0        numeric
+## 21           cause_type       0    0.00    0   0.00     0     0         factor
+## 22                alert       0    0.00    0   0.00     0     0 POSIXct/POSIXt
+## 23           extinction       0    0.00    9   0.12     0     0 POSIXct/POSIXt
+## 24          firstInterv       0    0.00    7   0.09     0     0 POSIXct/POSIXt
+## 25 latency_alert_interv     136    1.81    7   0.09     0     0       difftime
+## 26   latency_interv_ext     212    2.82    9   0.12     0     0       difftime
+## 27    latency_alert_ext       4    0.05    9   0.12     0     0       difftime
+##    unique
+## 1    7511
+## 2      10
+## 3      19
+## 4     297
+## 5    2270
+## 6    5812
+## 7    6221
+## 8       5
+## 9     317
+## 10   1312
+## 11    319
+## 12   1201
+## 13    318
+## 14   1209
+## 15      0
+## 16    591
+## 17   1052
+## 18    650
+## 19   1377
+## 20   1781
+## 21      4
+## 22   7313
+## 23   7120
+## 24   7187
+## 25    211
+## 26    544
+## 27    601</code></pre>
+<p>Marking a check point</p>
+<p>———————————-XXXXXXXXXXXXXXXXXX———————-</p>
+<p>It was necessary to do a cleaning on lat and lon variables and convert their contents from GPS coordinate to decimals.Before the transformation they were like below:</p>
 <p>first lines of lat variable</p>
 <pre><code>## [1] &quot;41:44:48.5663999999878&#39;&#39;&quot; &quot;41:12:58.4280000000109&#39;&#39;&quot;
 ## [3] &quot;41:38:07&quot;                 &quot;41:51:4.15079999998738&#39;&#39;&quot;
@@ -1922,13 +1982,13 @@ div.tocify {
 ## [3] &quot;07:54:43&quot;                &quot;7:42:11.7215999999988&#39;&#39;&quot;
 ## [5] &quot;07:24:14&quot;                &quot;07:54:57&quot;</code></pre>
 <p>After the transformation, the values were corrected.</p>
-<p>first lines of lat variable</p>
-<pre><code>## [1] &quot;41.746824&quot;        &quot;41.21623&quot;         &quot;41.6352777777778&quot; &quot;41.851153&quot;       
-## [5] &quot;41.5897222222222&quot; &quot;41.3505555555556&quot;</code></pre>
-<p>first lines of lon variable</p>
+<p>Here are the first lines of lat variable</p>
+<pre><code>## [1] &quot;82.1552628888889&quot; &quot;87.31651&quot;         &quot;82.5717777777778&quot; &quot;44.513221888889&quot; 
+## [5] &quot;57.6631111111194&quot; &quot;46.0550466666667&quot;</code></pre>
+<p>and here are the first lines of lon variable</p>
 <pre><code>## [1] &quot;8.520091&quot;         &quot;8.207883&quot;         &quot;7.91194444444444&quot; &quot;7.703256&quot;        
 ## [5] &quot;7.40388888888889&quot; &quot;7.91583333333333&quot;</code></pre>
-<p>#——————————XXXX———————————</p>
+<p>—————???????????????????????????????——————— Data imputation: firstInterv_date and firstInterv_hour</p>
 <p>Fix data type as factor on the variables below.</p>
 <pre><code>## Rows: 7,511
 ## Columns: 21
@@ -1938,7 +1998,7 @@ div.tocify {
 ## $ district           &lt;fct&gt; Viana do Castelo, Porto, Vila Real, Vila Real, V...
 ## $ municipality       &lt;fct&gt; Ponte de Lima, Marco de Canaveses, Boticas, Mont...
 ## $ parish             &lt;fct&gt; &quot;Serdedelo&quot;, &quot;Vila Boa de Quires&quot;, &quot;Cerdedo&quot;, &quot;G...
-## $ lat                &lt;chr&gt; &quot;41.746824&quot;, &quot;41.21623&quot;, &quot;41.6352777777778&quot;, &quot;41...
+## $ lat                &lt;chr&gt; &quot;82.1552628888889&quot;, &quot;87.31651&quot;, &quot;82.571777777777...
 ## $ lon                &lt;chr&gt; &quot;8.520091&quot;, &quot;8.207883&quot;, &quot;7.91194444444444&quot;, &quot;7.7...
 ## $ origin             &lt;fct&gt; fire, fire, fire, firepit, firepit, firepit, fir...
 ## $ alert_date         &lt;chr&gt; &quot;2015-03-24&quot;, &quot;2015-03-24&quot;, &quot;2015-03-24&quot;, &quot;2015-...
