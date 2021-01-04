@@ -1,0 +1,34 @@
+        KNN
+
+Confusion Matrix and Statistics
+
+             Reference
+Prediction    intentional natural negligent rekindling
+  intentional         192       1       428         27
+  natural               2       2        27          0
+  negligent           179       3      1012         55
+  rekindling           99       4       191         27
+
+Overall Statistics
+                                         
+               Accuracy : 0.5482         
+                 95% CI : (0.5274, 0.569)
+    No Information Rate : 0.7372         
+    P-Value [Acc > NIR] : 1              
+                                         
+                  Kappa : 0.1364         
+                                         
+ Mcnemar's Test P-Value : <2e-16         
+
+Statistics by Class:
+
+                     Class: intentional Class: natural Class: negligent Class: rekindling
+Sensitivity                     0.40678      0.2000000           0.6104           0.24771
+Specificity                     0.74339      0.9870478           0.5990           0.86262
+Pos Pred Value                  0.29630      0.0645161           0.8102           0.08411
+Neg Pred Value                  0.82511      0.9963931           0.3540           0.95747
+Prevalence                      0.20987      0.0044464           0.7372           0.04847
+Detection Rate                  0.08537      0.0008893           0.4500           0.01201
+Detection Prevalence            0.28813      0.0137839           0.5554           0.14273
+Balanced Accuracy               0.57508      0.5935239           0.6047           0.55516
+> 

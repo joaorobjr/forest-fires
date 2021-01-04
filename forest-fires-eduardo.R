@@ -415,15 +415,8 @@ ggplot(fires.raw, aes(x = region, y = month(alert_date, label = T))) +  theme(ax
 #ffires.rf_test <- ffires.rf %>% slice(-lines)
 
 
-#------------PREPARANDO DATASETS DE TREINO E TESTE---------
-ffires.rf_train <- trainSet
-ffires.rf_test <- testSet
-#---TESTE RETIRANDO ALGUMAS VARIÁVEIS----------------
-#ffires.rf_train = ffires.rf_train %>% select(-village_veget_area, -total_area, -latency_alert_interv, -latency_interv_ext, -latency_alert_ext, -tmax, -tmin)
-#ffires.rf_test = ffires.rf_test %>% select(-village_veget_area, -total_area, -latency_alert_interv, -latency_interv_ext, -latency_alert_ext, -tmax, -tmin)
-#-------------------------------------------------------
-
 #-------------------------DECISION TREE -----------------------
+#preparing the train and test datasets
 ffires.rf_train <- trainSet
 ffires.rf_test <- testSet
 #variable to be predicted

@@ -1,0 +1,70 @@
+              SVM
+
+##### PERFORMANCE ESTIMATION USING  HOLD OUT  #####
+
+** PREDICTIVE TASK :: ffires.rf_train.cause_type
+
+==  Hold Out Performance Estimation Experiment ==
+
+-> Task:  ffires.rf_train.cause_type
+  *Workflow: svm 
+               acc
+avg     0.58552381
+std     0.01579919
+med     0.57809524
+iqr     0.02476190
+min     0.57047619
+max     0.60571429
+invalid 0.00000000
+-------------------XXXXXX-------------------
+
+== Using Kernell
+
+ *Workflow: svm.v1 
+               acc
+avg     0.58895238
+std     0.02064273
+med     0.59333333
+iqr     0.02666667
+min     0.55904762
+max     0.60952381
+invalid 0.00000000
+
+  *Workflow: svm.v2 
+               acc
+avg     0.55104762
+std     0.01332653
+med     0.54666667
+iqr     0.01904762
+min     0.53809524
+max     0.56952381
+invalid 0.00000000
+
+  *Workflow: svm.v3 
+               acc
+avg     0.58552381
+std     0.01579919
+med     0.57809524
+iqr     0.02476190
+min     0.57047619
+max     0.60571429
+invalid 0.00000000
+
+  *Workflow: svm.v4 
+               acc
+avg     0.55238095
+std     0.02239614
+med     0.54476190
+iqr     0.04000000
+min     0.53047619
+max     0.57809524
+invalid 0.00000000
+
+> #finding the best performance
+
+$ffires.rf_train.cause_type
+    Workflow Estimate
+acc   svm.v1    0.589
+
+---------------------------------XXXXXXXXXXXXXXXX----------------------
+

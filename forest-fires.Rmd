@@ -149,6 +149,8 @@ df_status(fires.raw)
 tail(fires.raw)
 ```
 
+## Dataset Variables
+
 Table \@ref(tab:variables) describes all variables contained in the `fires.raw` of the data set.
 Clearly, the type of some of variables is incorrect and inconvenient for analysis and that was taken care of in section \@ref(data-cleaning).
 
@@ -180,7 +182,8 @@ village_veget_area|numeric     |total village+veget affected  |
 total_area        |numeric     |total area affected           |
 cause_type        |character   |cause of the fire             |
 
-## Graphic analysis {#graphic-analysis}
+
+### Graphic analysis {#graphic-analysis}
 
 
 1- Bar plot of forests fires during 2015
@@ -289,7 +292,7 @@ for (idx in idx.lat.wrong) {
 rm(df_temp)
 ```
 
-Cleaning lat and lon variables and convert from GPS coordinate to decimals
+A cleaning was made on lat and lon variables to remove some characters and change to "". It was necessary for the convertion from GPS coordinate to decimals.
 ```{r echo=FALSE}
 vec_clean <- c("''"="", "E-12"="", "E-11"="", "E-02"="", ","=".", "º"=" ", "'"=" ", ":"=" ")
 fires.raw$lat <- conv_unit(str_replace_all(str_trim(fires.raw$lat), vec_clean), "deg_min_sec", "dec_deg")
@@ -466,8 +469,7 @@ load("fires.raw.RData")
 ```
 
 ## Feature Engineering
-Deriving new variables from available data.
-MERGE WEATHER DATA AND FOREST FIRES --------------------------------------------
+Deriving new variables from available data and merging datasets WEATHER DATA AND FOREST FIRES getting new variables that can help on the predictions.
 ```{r echo=FALSE}
 load("data/station_data.Rdata")
 

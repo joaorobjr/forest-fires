@@ -1,0 +1,32 @@
+        ÁRVORE DE DECISÃO
+
+treeffires.rf$variable.importance
+              origin   village_veget_area 
+         178.2660064          151.3912355 
+               alert           extinction 
+         148.1314245          147.8049168 
+         firstInterv         farming_area 
+         147.7623594          140.6545212 
+            district              tavg15d 
+         137.1326049          117.2480250 
+                tavg                  lat 
+         107.5465973          106.1112888 
+                tmax                  lon 
+         105.3142876           35.9476092 
+     vegetation_area         village_area 
+          28.5102847           20.2117492 
+                tmin    latency_alert_ext 
+           6.8749142            1.6636158 
+          total_area   latency_interv_ext 
+           1.4619654            1.4371238 
+latency_alert_interv 
+           0.3701787 
+
+> predsTree <- predict(treeffires.rf,ffires.rf_test)
+
+> RMSE(predsTree,ffires.rf_test_cause)
+[1] 2.544571
+
+> R2(predsTree,ffires.rf_test_cause)
+     intentional    natural  negligent  rekindling
+[1,]  0.07266154 0.03219893 0.01836214 0.006858589

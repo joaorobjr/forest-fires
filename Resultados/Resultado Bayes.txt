@@ -1,0 +1,33 @@
+            BAYES
+
+Confusion Matrix and Statistics
+
+             Reference
+Prediction    intentional natural negligent rekindling
+  intentional           8      80        91        469
+  natural               0      11         2         18
+  negligent             6     230       453        560
+  rekindling            1      13        21        286
+
+Overall Statistics
+                                         
+               Accuracy : 0.337          
+                 95% CI : (0.3175, 0.357)
+    No Information Rate : 0.5927         
+    P-Value [Acc > NIR] : 1              
+                                         
+                  Kappa : 0.1406         
+                                         
+ Mcnemar's Test P-Value : <2e-16         
+
+Statistics by Class:
+
+                     Class: intentional Class: natural Class: negligent Class: rekindling
+Sensitivity                    0.533333       0.032934           0.7989            0.2146
+Specificity                    0.713518       0.989556           0.5268            0.9618
+Pos Pred Value                 0.012346       0.354839           0.3627            0.8910
+Neg Pred Value                 0.995628       0.854373           0.8860            0.4570
+Prevalence                     0.006670       0.148510           0.2521            0.5927
+Detection Rate                 0.003557       0.004891           0.2014            0.1272
+Detection Prevalence           0.288128       0.013784           0.5554            0.1427
+Balanced Accuracy              0.623426       0.511245           0.6628            0.5882

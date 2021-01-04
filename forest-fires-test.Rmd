@@ -149,6 +149,8 @@ df_status(fires.raw)
 tail(fires.raw)
 ```
 
+## Dataset Variables
+
 Table \@ref(tab:variables) describes all variables contained in the `fires.raw` of the data set.
 Clearly, the type of some of variables is incorrect and inconvenient for analysis and that was taken care of in section \@ref(data-cleaning).
 
@@ -181,7 +183,7 @@ total_area        |numeric     |total area affected           |
 cause_type        |character   |cause of the fire             |
 
 
-## Graphic analysis {#graphic-analysis}
+## Graphic analysis
 
 
 1- Bar plot of forests fires during 2015
@@ -256,7 +258,7 @@ ggplot(fires.raw, aes(x = region, y = month(alert_date, label = T))) +  theme(ax
 # Data Preparation
 
 ## Data Cleaning and Transforms: 
-We started to verify the dataset to identify and correct the mistakes or errors in the data.
+We started to verify the dataset to identify and correct the mistakes and errors in the data.
 First we tested if there were duplicated observations.
 ```{r echo=FALSE}
 anyDuplicated(fires.raw)
@@ -275,7 +277,7 @@ The number of observations with wrong value in lat variable were detected and th
 print(str_c("There are",length(idx.lat.wrong),"observations with wrong value '1900-01-01'", sep = " "))
 ```
 
-On the wrong values, an imputation was made based on another observation that has the same region, district, municipality and parish than these.
+On the wrong values, an imputation was made, based on another observation that has the same region, district, municipality and parish than these.
 ```{r echo=FALSE}
 for (idx in idx.lat.wrong) {
   df_temp = fires.raw[-idx.lat.wrong,] %>% 
@@ -289,7 +291,7 @@ for (idx in idx.lat.wrong) {
 rm(df_temp)
 ```
 
-Cleaning lat and lon variables and convert from GPS coordinate to decimals
+A cleaning was made on lat and lon variables to remove some characters and change to "". This process was necessary to convert their contents from GPS coordinate to decimals.
 ```{r echo=FALSE}
 vec_clean <- c("''"="", "E-12"="", "E-11"="", "E-02"="", ","=".", "º"=" ", "'"=" ", ":"=" ")
 fires.raw$lat <- conv_unit(str_replace_all(str_trim(fires.raw$lat), vec_clean), "deg_min_sec", "dec_deg")
@@ -301,7 +303,7 @@ fires.raw$lon <- conv_unit(str_replace_all(str_trim(fires.raw$lon, side = "both"
 # Workaround
 fires.raw$lon[7511] <- conv_unit("8 34 21.5868000000013", "deg_min_sec", "dec_deg")
 ```
-After the imputation, 8 NAs values were assign to observations in latitude and longitude variables
+After the imputation, 8 NA´s values were assigned to observations in latitude and longitude variables
 
 Insert latitude and longitude for parish with missing values
 ```{r echo=FALSE}
@@ -397,52 +399,7 @@ load("fires.raw.RData")
 
 ----------------------------------XXXXXXXXXXXXXXXXXX----------------------
 
-It was necessary to do a cleaning on lat and lon variables and convert their contents from GPS coordinate to decimals.Before the transformation they were like below:
 
-```{r echo=FALSE}
-head(fires.raw$lat)
-```
-
-```{r echo=FALSE}
-head(fires.raw$lon)
-```
-
-```{r echo=FALSE}
-vec_clean <- c("''"="", "E-12"="", "E-11"="", "E-02"="", ","=".", "º"=" ", "'"=" ", ":"=" ")
-fires.raw$lat <- conv_unit(str_replace_all(str_trim(fires.raw$lat), vec_clean), "deg_min_sec", "dec_deg")
-# Ocorre um warning ao executar essa linha
-fires.raw$lon <- conv_unit(str_replace_all(str_trim(fires.raw$lon, side = "both"), vec_clean), "deg_min_sec", "dec_deg")
-# Workaround
-fires.raw$lon[7511] <- conv_unit("8 34 21.5868000000013", "deg_min_sec", "dec_deg")
-```
-
-After the transformation, the values were corrected.
-
-Here are the first lines of lat variable
-```{r echo=FALSE}
-head(fires.raw$lat)
-```
-and here are the first lines of lon variable
-```{r echo=FALSE}
-head(fires.raw$lon)
-```
-
----------------???????????????????????????????---------------------
-Data imputation: firstInterv_date and firstInterv_hour
-```{r echo=FALSE}
-fires.raw <- fires.raw %>% rowwise() %>% mutate(firstInterv_date = if_else( is.na(firstInterv_date) && !is.na(extinction_date), extinction_date , firstInterv_date),firstInterv_hour = if_else( is.na(firstInterv_hour) && !is.na(extinction_hour), extinction_hour , firstInterv_hour))
-```
-
-Fix data type as factor on the variables below.
-```{r echo=FALSE}
-fires.raw$region = as.factor(fires.raw$region)
-fires.raw$district = as.factor(fires.raw$district)
-fires.raw$municipality = as.factor(fires.raw$municipality)
-fires.raw$parish = as.factor(fires.raw$parish)
-fires.raw$origin = as.factor(fires.raw$origin)
-fires.raw$cause_type = as.factor(fires.raw$cause_type)
-glimpse(fires.raw)
-```
 
 Creating new features
 Variable alert 
@@ -464,3 +421,42 @@ df_status(fires.raw)
 load("fires.raw.RData")
 ```
 
+
+## Feature Engineering
+Deriving new variables from available data and merging datasets WEATHER DATA AND FOREST FIRES getting new variables that can help on the predictions.
+We insert some new variables like TAVG, TMIN, TMAX and PRCP and did an imputation of value in tavg variable based on tmax and tmin,
+in tavg variable based on tavg15d (15 days before each occurrence), in tavg15d variable if NaN, in tmax variable based on tavg and tmin, in tmin variable based on tavg and tmax. We eliminated the maximum of observations with zeros and the dataset stayed like below:
+
+```{r echo=FALSE}
+load("data/station_data.Rdata")
+
+#INSERIR MERGE DOS DATASETS ------------ xxxxxxxx --------------
+
+load("ffires.RData")
+
+df_status(ffires)
+
+```
+
+### Feature Selection
+
+Identifying those input variables that are most relevant to the task.
+First, we rename the dataset and extracted some variables to minimize it.
+The variables "parish" and "municipality" have many diferent observations,
+"id" can be retired because it is only the number of the lines of dataset and we don´t need this column, "region" has 501 NA´s and we don´t have how to substitute them, "alert_source" only has NA´s and it can be removed.
+```{r echo = FALSE}
+ffires.rf = ffires
+ffires.rf = ffires.rf %>% select(-id, -region, -municipality, -parish, -alert_source, -alert_date, -alert_hour, -firstInterv_date, -firstInterv_hour, -extinction_date, -extinction_hour)
+ffires.rf = ffires.rf %>% filter(!is.na(extinction))
+ffires.rf = ffires.rf %>% filter(!is.na(firstInterv))
+```
+
+We changed variables to numeric.
+```{r echo = FALSE}
+ffires.rf$lat = as.numeric(ffires.rf$lat)
+ffires.rf$lon = as.numeric(ffires.rf$lon)
+ffires.rf$latency_alert_ext = as.numeric(ffires.rf$latency_alert_ext)
+ffires.rf$latency_alert_interv = as.numeric(ffires.rf$latency_alert_interv)
+ffires.rf$latency_interv_ext = as.numeric(ffires.rf$latency_interv_ext)
+df_status(ffires.rf)
+```
