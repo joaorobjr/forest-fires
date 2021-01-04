@@ -180,6 +180,7 @@ village_veget_area|numeric     |total village+veget affected  |
 total_area        |numeric     |total area affected           |
 cause_type        |character   |cause of the fire             |
 
+
 ## Graphic analysis {#graphic-analysis}
 
 
@@ -252,7 +253,6 @@ ggplot(fires.raw, aes(x = district, y = month(alert_date, label = T))) +  theme(
 ggplot(fires.raw, aes(x = region, y = month(alert_date, label = T))) +  theme(axis.text.x = element_text(angle = 90)) + geom_point(aes(color = cause_type)) + ggtitle("Relationship between region and month") + labs(x="Region", y="Months")
 ```
 
-
 # Data Preparation
 
 ## Data Cleaning and Transforms: 
@@ -301,7 +301,6 @@ fires.raw$lon <- conv_unit(str_replace_all(str_trim(fires.raw$lon, side = "both"
 # Workaround
 fires.raw$lon[7511] <- conv_unit("8 34 21.5868000000013", "deg_min_sec", "dec_deg")
 ```
-
 After the imputation, 8 NAs values were assign to observations in latitude and longitude variables
 
 Insert latitude and longitude for parish with missing values
@@ -465,158 +464,3 @@ df_status(fires.raw)
 load("fires.raw.RData")
 ```
 
-## Feature Engineering
-Deriving new variables from available data.
-MERGE WEATHER DATA AND FOREST FIRES --------------------------------------------
-```{r echo=FALSE}
-load("data/station_data.Rdata")
-
-get_nearby_stations = function (df, measure){
-  nearby_stations = meteo_nearby_stations(lat_lon_df = df,
-                                          station_data = station_data, 
-                                          radius = 1000, 
-                                          var = measure,
-                                          year_min = 2014, year_max = 2015,
-                                          limit = 5)
-  return(nearby_stations)
-}
-
-fires.raw = fires.raw %>% mutate(tavg = 0, tavg15d = 0, tmax = 0, tmin = 0, prcp = 0)
-
-fires = distinct(fires.raw, parish, lat, lon, alert_date)
-
-for (i in 1:dim(fires)[1]) {
-  fire = fires[i,]
-  idx = which(fires.raw$parish == fire$parish & fires.raw$lat == fire$lat & fires.raw$lon == fire$lon & fires.raw$alert_date == fire$alert_date)
-  print(idx)
-  df = data.frame(id=fire$parish, latitude=fire$lat, longitude=fire$lon, stringsAsFactors = F)
-  stations = get_nearby_stations(df, c("TAVG", "TMAX", "TMIN", "PRCP"))
-  
-  # Set TAVG
-  for(j in 1:dim(stations[[1]])[1] ){
-    wd = ghcnd_search(stations[[1]]$id[j], var = "TAVG", date_min = fire$alert_date, date_max = fire$alert_date)
-    if(!is.null(wd$tavg) && nrow(wd$tavg)>0 && !is.na(wd$tavg$tavg) && wd$tavg$tavg > 0){
-      tavg = wd$tavg$tavg
-      #print(str_c("Data: ", fire$alert_date, " tavg: ", tavg))
-      fires.raw[idx,]$tavg = tavg/10
-      break()
-    }
-  }
-  
-  dt_ini = as.character(as.Date(fire$alert_date) - ddays(15))
-  
-  # Set TAVG15D
-  for(j in 1:dim(stations[[1]])[1] ){
-    wd = ghcnd_search(stations[[1]]$id[j], var = "TAVG", date_min = dt_ini, date_max = fire$alert_date)
-    if(!is.null(wd$tavg) && nrow(wd$tavg)>0){
-      tavg15d = mean(wd$tavg$tavg, na.rm = TRUE)
-      #print(str_c("Data: ", fire$alert_date, " tavg15d: ", tavg15d))
-      fires.raw[idx,]$tavg15d = tavg15d/10
-      break()
-    }
-  }
-  
-  # Set TMAX
-  for(j in 1:dim(stations[[1]])[1] ){
-    wd = ghcnd_search(stations[[1]]$id[j], var = "TMAX", date_min = fire$alert_date, date_max = fire$alert_date)
-    if(!is.null(wd$tmax) && nrow(wd$tmax)>0 && !is.na(wd$tmax$tmax) && wd$tmax$tmax > 0){
-      tmax = wd$tmax$tmax
-      #print(str_c("Data: ", fire$alert_date, " tmax: ", tmax))
-      fires.raw[idx,]$tmax = tmax/10
-      break()
-    }
-  }
-  
-  # Set TMIN
-  for(j in 1:dim(stations[[1]])[1] ){
-    wd = ghcnd_search(stations[[1]]$id[j], var = "TMIN", date_min = fire$alert_date, date_max = fire$alert_date)
-    if(!is.null(wd$tmin) && nrow(wd$tmin)>0 && !is.na(wd$tmin$tmin) && wd$tmin$tmin > 0){
-      tmin = wd$tmin$tmin
-      #print(str_c("Data: ", fire$alert_date, " tmin: ", tmin))
-      fires.raw[idx,]$tmin = tmin/10
-      break()
-    }
-  }
-  
-  # Set PRCP
-  for(j in 1:dim(stations[[1]])[1] ){
-    wd = ghcnd_search(stations[[1]]$id[j], var = "PRCP", date_min = fire$alert_date, date_max = fire$alert_date)
-    if(!is.null(wd$prcp) && nrow(wd$prcp)>0 && !is.na(wd$prcp$prcp) && wd$prcp$prcp > 0){
-      prcp = wd$prcp$prcp
-      #print(str_c("Data: ", fire$alert_date, " prcp: ", prcp))
-      fires.raw[idx,]$prcp = prcp/10
-      break()
-    }
-  }
-}
-
-ffires = as_tibble( fires.raw)
-```
-
-We did an imputation of value in tavg variable based on tmax and tmin,
-in tavg variable based on tavg15d, in tavg15d variable if NaN,
-in tmax variable based on tavg and tmin, in tmin variable based on tavg and tmax
-```{r echo = FALSE}
-ffires = ffires %>% rowwise() %>%  mutate(tavg = if_else(tavg == 0 & tmax != 0 & tmin != 0, (tmax+tmin)/2, tavg))
-
-ffires = ffires %>% rowwise() %>%  mutate(tavg = if_else(tavg == 0 & tavg15d != 0, tavg15d, tavg))
-
-ffires = ffires %>% rowwise() %>%  mutate(tavg15d = if_else(is.nan(tavg15d), 0, tavg15d))
-
-ffires = ffires %>% rowwise() %>%  mutate(tmax = if_else(tmax == 0 & tavg != 0 & tmin != 0, (2*tavg)-tmin, tmax))
-
-ffires = ffires %>% rowwise() %>%  mutate(tmin = if_else(tmin == 0 & tavg != 0 & tmax != 0, (2*tavg)-tmax, tmin))
-
-ffires = as_tibble(ffires)
-
-#save(ffires, file = "ffires.RData")
-
-load("ffires.RData")
-
-df_status(ffires)
-```
-
-
-## Feature Selection
-Identifying those input variables that are most relevant to the task.
-First, we rename the dataset and extracted some variables to minimize it.
-The variables "parish" and "municipality" have many diferent observations,
-"id" can be retired because it is only the number of the lines of dataset and we don´t need this column, "region" has 501 NA´s and we don´t have how to substitute them, "alert_source" only has NA´s and it can be removed.
-```{r echo = FALSE}
-ffires.rf = ffires
-ffires.rf = ffires.rf %>% select(-id, -region, -municipality, -parish, -alert_source, -alert_date, -alert_hour, -firstInterv_date, -firstInterv_hour, -extinction_date, -extinction_hour)
-ffires.rf = ffires.rf %>% filter(!is.na(extinction))
-ffires.rf = ffires.rf %>% filter(!is.na(firstInterv))
-```
-
-changing to numeric
-```{r echo = FALSE}
-ffires.rf$lat = as.numeric(ffires.rf$lat)
-ffires.rf$lon = as.numeric(ffires.rf$lon)
-ffires.rf$latency_alert_ext = as.numeric(ffires.rf$latency_alert_ext)
-ffires.rf$latency_alert_interv = as.numeric(ffires.rf$latency_alert_interv)
-ffires.rf$latency_interv_ext = as.numeric(ffires.rf$latency_interv_ext)
-```
-
-##Creating train and test datasets
-```{r echo = FALSE}
-df_status(ffires.rf)
-set.seed(123456)
-idx.trainset = createDataPartition(ffires.rf$cause_type, p = 0.7, list = FALSE)
-trainSet = ffires.rf[ idx.trainset,] 
-testSet <- ffires.rf[-idx.trainset,]
-```
-
-
-
-
-## Dimensionality Reduction
-Creating compact projections of the data.
-
-
-# Exploratory Data Analysis
-
-
-# Conclusions, Shortcomings and Future Work
-
-# Appendix
