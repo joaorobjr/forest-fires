@@ -234,6 +234,46 @@ df_status(ffires)
 
 # FEATURE SELECTION ----------------------------------------------
 
+# Not relevant features
+
+#Create feature: alert_month
+ffires$alert_month = month(ffires$alert, label = FALSE)
+#Create feature: alert_period
+ffires$alert_period = if_else(between(hour(ffires$alert),6,11),"Morning",if_else(between(hour(ffires$alert),12,17),"Afternoon",if_else(between(hour(ffires$alert),18,23),"Night", "Dawn")))
+#Create feature: duration
+ffires = ffires %>% rowwise() %>% mutate(duration = (extinction-alert)/60)
+
+ffires.full = as_tibble(ffires)
+save(ffires.full, file = "ffiresFull.RData")
+
+load("ffiresFull.RData")
+
+df_status(ffires.full)
+
+ffires = ffires.full %>% select(district, origin, alert_month, alert_period, duration, village_area, vegetation_area, farming_area, tavg, tavg15d, prcp, cause_type)
+
+df_status(ffires)
+
+#period = c("Morning", "Afternoon", "Night", "Dawn")
+#ffires$alert_period = factor(ffires$alert_period, levels = period, ordered = TRUE)
+ffires$alert_month = as.factor(ffires$alert_month)
+ffires$alert_period = as.factor(ffires$alert_period)
+ffires$duration = as.numeric(ffires$duration)
+ffires = ffires %>% filter(!is.na(duration))
+
+df_status(ffires)
+
+set.seed(123456)
+idx.trainset = createDataPartition(ffires$cause_type, p = 0.7, list = FALSE)
+trainSet = ffires[ idx.trainset,] 
+testSet <- ffires[-idx.trainset,]
+
+# Create Model: Random Forest
+rfFit <- train(cause_type ~ ., data = trainSet, method = "rf")
+varImp(rfFit)
+
+
+
 # Random Forest --------------------------------------------------
 ffires.rf = ffires
 ffires.rf = ffires.rf %>% select(-id, -region, -municipality, -parish, -alert_source, -alert_date, -alert_hour, -firstInterv_date, -firstInterv_hour, -extinction_date, -extinction_hour)
@@ -256,7 +296,7 @@ testSet <- ffires.rf[-idx.trainset,]
 
 outcomeName <-'cause_type'
 predictors <- names(trainSet)[!names(trainSet) %in% outcomeName] 
-rfControl <- rfeControl(functions = rfFuncs, method = "repeatedcv", repeats = 3, verbose = TRUE) 
+rfControl <- rfeControl(functions = rfFuncs, method = "cv", number = 10, verbose = TRUE) 
 rfProfile <- rfe(trainSet[,predictors], trainSet[[outcomeName]], sizes=c(1:20), rfeControl = rfControl) 
 
 rfProfile
@@ -272,33 +312,35 @@ rfFit <- train(cause_type ~ ., data = trainSet, method = "rf")
 varImp(rfFit)
 
 save(rfFit, file = "rfFit.RData")
+load("rfFit.RData")
+load("rfProfile.RData")
 
-#Linear Regression ------------------------------------
-ffires.lm = ffires
-ffires.lm = ffires.lm %>% select(-id, -region, -alert_source, -alert_date, -alert_hour, -firstInterv_date, -firstInterv_hour, -extinction_date, -extinction_hour)
-ffires.lm = ffires.lm %>% filter(!is.na(extinction))
-ffires.lm = ffires.lm %>% filter(!is.na(firstInterv))
+#Logistic Regression ------------------------------------
+ffires.lr = ffires
+ffires.lr = ffires.lr %>% select(-id, -region, -alert_source, -alert_date, -alert_hour, -firstInterv_date, -firstInterv_hour, -extinction_date, -extinction_hour)
+ffires.lr = ffires.lr %>% filter(!is.na(extinction))
+ffires.lr = ffires.lr %>% filter(!is.na(firstInterv))
 
-df_status(ffires.lm)
+df_status(ffires.lr)
 set.seed(123456)
 
-idx.trainset = createDataPartition(ffires.lm$cause_type, p = 0.7, list = FALSE)
-lmTrainSet = ffires.lm[idx.trainset,] 
-lmTestSet = ffires.lm[-idx.trainset,]
+idx.trainset = createDataPartition(ffires.lr$cause_type, p = 0.7, list = FALSE)
+lrTrainSet = ffires.lr[idx.trainset,] 
+lrTestSet = ffires.lr[-idx.trainset,]
 
 outcomeName ='cause_type'
-predictors = names(lmTrainSet)[!names(lmTrainSet) %in% outcomeName] 
+predictors = names(lrTrainSet)[!names(lrTrainSet) %in% outcomeName] 
 
-lmControl = rfeControl(functions = lmFuncs, method = "repeatedcv", repeats = 3, verbose = TRUE) 
-lmProfile = rfe(lmTrainSet[,predictors], lmTrainSet[[outcomeName]], sizes=c(1:5,10,15,20,23), rfeControl = lmControl) 
+lrControl = rfeControl(functions = lrFuncs, method = "cv", verbose = TRUE) 
+lrProfile = rfe(lrTrainSet[,predictors], lrTrainSet[[outcomeName]], sizes=c(1:5,10,15,20,23), rfeControl = lrControl) 
 
-lmProfile
+lrProfile
 
-save(lmProfile, file = "lmProfile.RData")
+save(lrProfile, file = "lrProfile.RData")
 
-predictors(lmProfile)
-lmProfile$fit
-plot(lmProfile, type = c("g", "o"))
+predictors(lrProfile)
+lrProfile$fit
+plot(lrProfile, type = c("g", "o"))
 
 # Create Model: Linear Regression
 lmFit <- train(cause_type ~ ., data = lmTrainSet, method = "lm")
@@ -323,7 +365,7 @@ outcomeName ='cause_type'
 predictors = names(nbTrainSet)[!names(nbTrainSet) %in% outcomeName] 
 
 nbControl = rfeControl(functions = nbFuncs, method = "repeatedcv", repeats = 3, verbose = TRUE) 
-nbProfile = rfe(nbTrainSet[,predictors], nbTrainSet[[outcomeName]], sizes=c(1:5,10,15,20,23), rfeControl = nbControl) 
+nbProfile = rfe(nbTrainSet[,predictors], nbTrainSet[[outcomeName]], rfeControl = nbControl) 
 
 nbProfile
 
@@ -436,3 +478,52 @@ save(nbFit, file = "nbFit.RData")
 
 
 
+
+
+# Logistic Regression --------------------------------------------------
+
+
+
+
+library(Boruta)
+
+ffires.lm = ffires
+ffires.lm = ffires.lm %>% select(-id, -region, -alert_source, -alert_date, -alert_hour, -firstInterv_date, -firstInterv_hour, -extinction_date, -extinction_hour)
+ffires.lm = ffires.lm %>% filter(!is.na(extinction))
+ffires.lm = ffires.lm %>% filter(!is.na(firstInterv))
+
+idx.trainset = createDataPartition(ffires.lm$cause_type, p = 0.7, list = FALSE)
+lmTrainSet = ffires.lm[idx.trainset,] 
+lmTestSet = ffires.lm[-idx.trainset,]
+
+set.seed(456)
+boruta <- Boruta(cause_type ~ ., data = lmTrainSet, doTrace = 2)
+boruta
+print(boruta)
+plot(boruta)
+
+
+
+# Fit the model
+model <- nnet::multinom(Species ~., data = train.data)
+# Summarize the model
+summary(model)
+# Make predictions
+predicted.classes <- model %>% predict(test.data)
+head(predicted.classes)
+# Model accuracy
+mean(predicted.classes == test.data$Species)
+
+
+#Fitting a logistic regression model
+logmodel <- glm(default ~ balance, family = "binomial", data = train)
+
+#Plotting a graph: Probability of default Vs Balance
+mydata %>%
+  mutate(prob = ifelse(default == "Yes", 1, 0)) %>%
+  ggplot(aes(balance, prob)) +
+  geom_point(alpha = .15) +
+  geom_smooth(method = "glm", method.args = list(family = "binomial")) +
+  ggtitle("Logistic regression model fit") +
+  xlab("Balance") +
+  ylab("Probability of Default")
