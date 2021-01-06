@@ -6,6 +6,8 @@ library(ggplot2)
 library('rnoaa')
 library(devtools)
 library(caret)
+library(Boruta)
+library(nnet)
 options(noaakey = "mqEuOSuAUjyuGlTjVjxxCpzRlbrooRnr")
 
 #Load raw data --------------------------------------------------
@@ -229,33 +231,28 @@ ffires = as_tibble(ffires)
 #save(ffires, file = "ffires.RData")
 load("ffires.RData")
 
-df_status(ffires)
-
-
-# FEATURE SELECTION ----------------------------------------------
-
-# Not relevant features
-
 #Create feature: alert_month
 ffires$alert_month = month(ffires$alert, label = FALSE)
+
 #Create feature: alert_period
 ffires$alert_period = if_else(between(hour(ffires$alert),6,11),"Morning",if_else(between(hour(ffires$alert),12,17),"Afternoon",if_else(between(hour(ffires$alert),18,23),"Night", "Dawn")))
+
 #Create feature: duration
 ffires = ffires %>% rowwise() %>% mutate(duration = (extinction-alert)/60)
 
 ffires.full = as_tibble(ffires)
+
 save(ffires.full, file = "ffiresFull.RData")
+
+
+# FEATURE SELECTION ----
 
 load("ffiresFull.RData")
 
-df_status(ffires.full)
-
+# Selection of relevant features (remove redundancy) ----
 ffires = ffires.full %>% select(district, origin, alert_month, alert_period, duration, village_area, vegetation_area, farming_area, tavg, tavg15d, prcp, cause_type)
 
-df_status(ffires)
-
-#period = c("Morning", "Afternoon", "Night", "Dawn")
-#ffires$alert_period = factor(ffires$alert_period, levels = period, ordered = TRUE)
+# fix data type
 ffires$alert_month = as.factor(ffires$alert_month)
 ffires$alert_period = as.factor(ffires$alert_period)
 ffires$duration = as.numeric(ffires$duration)
@@ -263,267 +260,108 @@ ffires = ffires %>% filter(!is.na(duration))
 
 df_status(ffires)
 
+#save(ffires, file = "ffires.RData")
+load("ffires.RData")
+
+# Create train set and test set ----
 set.seed(123456)
 idx.trainset = createDataPartition(ffires$cause_type, p = 0.7, list = FALSE)
 trainSet = ffires[ idx.trainset,] 
 testSet <- ffires[-idx.trainset,]
 
-# Create Model: Random Forest
-rfFit <- train(cause_type ~ ., data = trainSet, method = "rf")
-varImp(rfFit)
-
-
-
-# Random Forest --------------------------------------------------
-ffires.rf = ffires
-ffires.rf = ffires.rf %>% select(-id, -region, -municipality, -parish, -alert_source, -alert_date, -alert_hour, -firstInterv_date, -firstInterv_hour, -extinction_date, -extinction_hour)
-ffires.rf = ffires.rf %>% filter(!is.na(extinction))
-ffires.rf = ffires.rf %>% filter(!is.na(firstInterv))
-#ffires$district = as.character(ffires$district)
-#ffires$municipality = as.character(ffires$municipality)
-#ffires$parish = as.character(ffires$parish)
-ffires.rf$lat = as.numeric(ffires.rf$lat)
-ffires.rf$lon = as.numeric(ffires.rf$lon)
-ffires.rf$latency_alert_ext = as.numeric(ffires.rf$latency_alert_ext)
-ffires.rf$latency_alert_interv = as.numeric(ffires.rf$latency_alert_interv)
-ffires.rf$latency_interv_ext = as.numeric(ffires.rf$latency_interv_ext)
-
-df_status(ffires.rf)
-set.seed(123456)
-idx.trainset = createDataPartition(ffires.rf$cause_type, p = 0.7, list = FALSE)
-trainSet = ffires.rf[ idx.trainset,] 
-testSet <- ffires.rf[-idx.trainset,]
-
+# Recursive Feature Elimination -------------------------------------------------
 outcomeName <-'cause_type'
 predictors <- names(trainSet)[!names(trainSet) %in% outcomeName] 
-rfControl <- rfeControl(functions = rfFuncs, method = "cv", number = 10, verbose = TRUE) 
-rfProfile <- rfe(trainSet[,predictors], trainSet[[outcomeName]], sizes=c(1:20), rfeControl = rfControl) 
-
-rfProfile
+rfControl <- rfeControl(functions = rfFuncs, method = "repeatedcv", repeats = 5, verbose = TRUE) 
+rfProfile <- rfe(trainSet[,predictors], trainSet[[outcomeName]], sizes=c(1:11), rfeControl = rfControl) 
 
 save(rfProfile, file = "rfProfile.RData")
+load("rfProfile.RData")
 
+rfProfile
 predictors(rfProfile)
 rfProfile$fit
 plot(rfProfile, type = c("g", "o"))
 
-# Create Model: Random Forest
-rfFit <- train(cause_type ~ ., data = trainSet, method = "rf")
-varImp(rfFit)
+# Boruta ------------------------------------------------------------------------
+boruta <- Boruta(cause_type ~ ., data = trainSet, doTrace = 2)
+save(boruta, file = "boruta.RData")
+load("boruta.RData")
 
-save(rfFit, file = "rfFit.RData")
-load("rfFit.RData")
-load("rfProfile.RData")
-
-#Logistic Regression ------------------------------------
-ffires.lr = ffires
-ffires.lr = ffires.lr %>% select(-id, -region, -alert_source, -alert_date, -alert_hour, -firstInterv_date, -firstInterv_hour, -extinction_date, -extinction_hour)
-ffires.lr = ffires.lr %>% filter(!is.na(extinction))
-ffires.lr = ffires.lr %>% filter(!is.na(firstInterv))
-
-df_status(ffires.lr)
-set.seed(123456)
-
-idx.trainset = createDataPartition(ffires.lr$cause_type, p = 0.7, list = FALSE)
-lrTrainSet = ffires.lr[idx.trainset,] 
-lrTestSet = ffires.lr[-idx.trainset,]
-
-outcomeName ='cause_type'
-predictors = names(lrTrainSet)[!names(lrTrainSet) %in% outcomeName] 
-
-lrControl = rfeControl(functions = lrFuncs, method = "cv", verbose = TRUE) 
-lrProfile = rfe(lrTrainSet[,predictors], lrTrainSet[[outcomeName]], sizes=c(1:5,10,15,20,23), rfeControl = lrControl) 
-
-lrProfile
-
-save(lrProfile, file = "lrProfile.RData")
-
-predictors(lrProfile)
-lrProfile$fit
-plot(lrProfile, type = c("g", "o"))
-
-# Create Model: Linear Regression
-lmFit <- train(cause_type ~ ., data = lmTrainSet, method = "lm")
-varImp(lmFit)
-
-save(lmFit, file = "lmFit.RData")
-
-#Naive Bayes ------------------------------------
-ffires.nb = ffires
-ffires.nb = ffires.nb %>% select(-id, -region, -alert_source, -alert_date, -alert_hour, -firstInterv_date, -firstInterv_hour, -extinction_date, -extinction_hour)
-ffires.nb = ffires.nb %>% filter(!is.na(extinction))
-ffires.nb = ffires.nb %>% filter(!is.na(firstInterv))
-
-df_status(ffires.nb)
-set.seed(123456)
-
-idx.trainset = createDataPartition(ffires.nb$cause_type, p = 0.7, list = FALSE)
-nbTrainSet = ffires.nb[idx.trainset,] 
-nbTestSet = ffires.nb[-idx.trainset,]
-
-outcomeName ='cause_type'
-predictors = names(nbTrainSet)[!names(nbTrainSet) %in% outcomeName] 
-
-nbControl = rfeControl(functions = nbFuncs, method = "repeatedcv", repeats = 3, verbose = TRUE) 
-nbProfile = rfe(nbTrainSet[,predictors], nbTrainSet[[outcomeName]], rfeControl = nbControl) 
-
-nbProfile
-
-save(nbProfile, file = "nbProfile.RData")
-
-predictors(nbProfile)
-nbProfile$fit
-plot(nbProfile, type = c("g", "o"))
-
-# Create Model: Naive Bayse
-nbFit <- train(cause_type ~ ., data = nbTrainSet, method = "nb")
-varImp(nbFit)
-
-save(nbFit, file = "nbFit.RData")
-
-
-
-
-
-
-
-
-
-
-
-
-
-# df_status(ffires)
-# 
-# parishes = distinct(fires.raw, parish) %>% arrange(parish) 
-# 
-# weather_measures = c("TAVG", "TMAX", "TMIN", "PRCP", "AWND")
-# 
-# stations = get_nearby_stations(df_parish, weather_measures)
-# 
-# weather_data = c()
-# 
-# for (parish in parishes$parish) {
-#   station = eval(parse(text=sprintf("stations$'%s'$id[1]", parish)))
-#   wd = get_weather_data(station, weather_measures)
-#   weather_data = append(weather_data, eval(parse(text=sprintf("list('%s'= wd)", parish))))
-# }
-# 
-# save(weather_data, file = "weather_data.RData")
-# load("weather_data.RData")
-# 
-# 
-# 
-# 
-# # Create new attributes: tavg, tmax, tmin, prcp
-# fires.raw = fires.raw %>% mutate(tavg = 0, tavg15d = 0, tmax = 0, tmin = 0, prcp = 0)
-# 
-# for (parish_name in parishes$parish) {
-#   
-#   arr_alert_dates = fires.raw %>% filter(parish == parish_name) %>% select(alert_date)
-#   
-#   wdTAVG = eval(parse(text=sprintf("weather_data$'%s'$tavg", parish_name)))
-#   wdTMAX = eval(parse(text=sprintf("weather_data$'%s'$tmax", parish_name)))
-#   wdTMIN = eval(parse(text=sprintf("weather_data$'%s'$tmin", parish_name)))
-#   wdPRCP = eval(parse(text=sprintf("weather_data$'%s'$prcp", parish_name)))
-#   
-#   for (dt in arr_alert_dates$alert_date) {
-#     
-#     idx = which(fires.raw$parish == parish_name & fires.raw$alert_date == dt)
-#     
-#     if(!is.null(wdTAVG)){
-#       
-#       wdtavg15days = wdTAVG %>% filter(date >= (as.Date(dt) - ddays(15)) & date < as.Date(dt))
-#       if(nrow(wdtavg15days)>0){
-#         fires.raw[idx,]$tavg15d = mean(wdtavg15days$tavg, na.rm = TRUE)/10
-#       }
-#       
-#       wdTAVG = filter(wdTAVG, date == dt)
-#       if(nrow(wdTAVG)>0){
-#         fires.raw[idx,]$tavg = wdTAVG$tavg/10
-#       }
-#     }
-#     
-#     if(!is.null(wdTMAX)){
-#       wdTMAX = filter(wdTMAX, date == dt)
-#       if(nrow(wdTMAX)>0){
-#         fires.raw[idx,]$tmax = wdTMAX$tmax/10
-#       }
-#     }
-#     
-#     if(!is.null(wdTMIN)){
-#       wdTMIN = filter(wdTMIN, date == dt)
-#       if(nrow(wdTMIN)>0){
-#         fires.raw[idx,]$tmin = wdTMIN$tmin/10
-#       }
-#     }
-#     
-#     if(!is.null(wdPRCP)){
-#       wdPRCP = filter(wdPRCP, date == dt)
-#       if(nrow(wdPRCP)>0){
-#         fires.raw[idx,]$prcp = wdPRCP$prcp/10
-#       }
-#     }
-#   }
-# }
-# 
-# ffires = fires.raw
-# 
-# save(ffires, file = "ffires.RData")
-# load("ffires.RData")
-
-
-
-
-
-
-
-
-
-# Logistic Regression --------------------------------------------------
-
-
-
-
-library(Boruta)
-
-ffires.lm = ffires
-ffires.lm = ffires.lm %>% select(-id, -region, -alert_source, -alert_date, -alert_hour, -firstInterv_date, -firstInterv_hour, -extinction_date, -extinction_hour)
-ffires.lm = ffires.lm %>% filter(!is.na(extinction))
-ffires.lm = ffires.lm %>% filter(!is.na(firstInterv))
-
-idx.trainset = createDataPartition(ffires.lm$cause_type, p = 0.7, list = FALSE)
-lmTrainSet = ffires.lm[idx.trainset,] 
-lmTestSet = ffires.lm[-idx.trainset,]
-
-set.seed(456)
-boruta <- Boruta(cause_type ~ ., data = lmTrainSet, doTrace = 2)
 boruta
 print(boruta)
 plot(boruta)
+attStats(boruta)
+
+ctrl <- trainControl(method = "cv", number = 10, verboseIter = TRUE)
+
+# Create Model: Random Forest
+rfModel <- train(cause_type ~ ., data = trainSet, method = "rf", trControl = ctrl)
+save(rfModel, file = "rfModel.RData")
+
+# Create Model: Logist Regression
+lrModel <- train(cause_type ~ ., data = trainSet, method = "multinom", trControl = ctrl)
+save(lrModel, file = "lrModel.RData")
+
+# Create Model: Neural Networks
+nnModel <- train(cause_type ~ ., data = trainSet, method = "nnet", trControl = ctrl)
+save(nnModel, file = "nnModel.RData")
+
+nnModel$results
+
+
+load("rfModel.RData")
+plot(varImp(rfModel))
+plot(varImp(lrModel))
+plot(varImp(nnModel$method))
+
+
+lrModel$censored
 
 
 
 # Fit the model
-model <- nnet::multinom(Species ~., data = train.data)
+lrModel <- multinom(cause_type ~., data = trainSet)
+
+lrModel$fitted.values
+lrModel$residuals
+#Atomic Index Composition
+lrModel$AIC
+
 # Summarize the model
-summary(model)
+summary(lrModel)
+summary(lrModel)$coefficients[tavg,]
 # Make predictions
-predicted.classes <- model %>% predict(test.data)
+predicted.classes <- lrModel %>% predict(testSet)
+
 head(predicted.classes)
 # Model accuracy
-mean(predicted.classes == test.data$Species)
+mean(predicted.classes == testSet$cause_type)
+
+head(predict(lrModel, newdata = testSet, type = "prob"))
+coef(lrModel)
+
+exp(coef(lrModel))
+
+p_hat <- fitted(lrModel)
+head(round(p_hat, digits=5))
 
 
-#Fitting a logistic regression model
-logmodel <- glm(default ~ balance, family = "binomial", data = train)
 
-#Plotting a graph: Probability of default Vs Balance
-mydata %>%
-  mutate(prob = ifelse(default == "Yes", 1, 0)) %>%
-  ggplot(aes(balance, prob)) +
-  geom_point(alpha = .15) +
-  geom_smooth(method = "glm", method.args = list(family = "binomial")) +
-  ggtitle("Logistic regression model fit") +
-  xlab("Balance") +
-  ylab("Probability of Default")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
