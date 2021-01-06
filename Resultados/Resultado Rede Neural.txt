@@ -25,3 +25,38 @@ iter 190 value 5049.241395
 iter 200 value 5049.150920
 final  value 5049.150920 
 stopped after 200 iterations
+
+
+------------------------------XXXXXXXXXXXXXXXXX--------
+                                     [,1]
+error                        1.545751e+03
+reached.threshold            9.275566e-03
+steps                        5.100000e+01
+Intercept.to.1layhid1       -7.205103e-02
+district.to.1layhid1         9.822013e-01
+origin.to.1layhid1           1.207856e+00
+alert_month.to.1layhid1     -3.564845e-02
+alert_period.to.1layhid1     8.159487e-01
+duration.to.1layhid1         1.415317e+00
+village_area.to.1layhid1     8.011923e-01
+vegetation_area.to.1layhid1  1.736118e-01
+farming_area.to.1layhid1     1.175191e+00
+tavg.to.1layhid1            -1.324801e-01
+tavg15d.to.1layhid1          1.867312e+00
+Intercept.to.negligent       2.534695e-02
+1layhid1.to.negligent        2.624891e-01
+Intercept.to.rekindling      1.248055e+00
+1layhid1.to.rekindling      -1.233970e+00
+Intercept.to.intentional    -9.554775e-02
+1layhid1.to.intentional      6.504689e-01
+Intercept.to.natural        -5.523907e-01
+1layhid1.to.natural          6.955473e-01
+
+attr(,"class")
+[1] "nn"
+> plot(m)
+> m <- nnet(cause_type ~.,ffires.rf_train_num,size=1,maxit=200)
+# weights:  19
+initial  value 7413.196679 
+iter  10 value 5376.902498
+final  value 5376.898632

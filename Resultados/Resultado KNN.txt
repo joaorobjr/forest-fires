@@ -32,3 +32,36 @@ Detection Rate                  0.08537      0.0008893           0.4500         
 Detection Prevalence            0.28813      0.0137839           0.5554           0.14273
 Balanced Accuracy               0.57508      0.5935239           0.6047           0.55516
 > 
+
+---------------------------------------XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX---------------------------
+Confusion Matrix and Statistics
+
+             Reference
+Prediction    intentional natural negligent rekindling
+  intentional         152       0       461         35
+  natural              12       0        19          0
+  negligent           163       0      1049         37
+  rekindling           77       0       218         26
+
+Overall Statistics
+                                          
+               Accuracy : 0.5456          
+                 95% CI : (0.5247, 0.5663)
+    No Information Rate : 0.7768          
+    P-Value [Acc > NIR] : 1               
+                                          
+                  Kappa : 0.1101          
+                                          
+ Mcnemar's Test P-Value : NA              
+
+Statistics by Class:
+
+                     Class: intentional Class: natural Class: negligent Class: rekindling
+Sensitivity                     0.37624             NA           0.6005           0.26531
+Specificity                     0.73117        0.98622           0.6016           0.86285
+Pos Pred Value                  0.23457             NA           0.8399           0.08100
+Neg Pred Value                  0.84260             NA           0.3020           0.96266
+Prevalence                      0.17964        0.00000           0.7768           0.04357
+Detection Rate                  0.06759        0.00000           0.4664           0.01156
+Detection Prevalence            0.28813        0.01378           0.5554           0.14273
+Balanced Accuracy               0.55370             NA           0.6010           0.56408

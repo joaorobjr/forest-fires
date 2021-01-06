@@ -31,3 +31,37 @@ Prevalence                     0.006670       0.148510           0.2521         
 Detection Rate                 0.003557       0.004891           0.2014            0.1272
 Detection Prevalence           0.288128       0.013784           0.5554            0.1427
 Balanced Accuracy              0.623426       0.511245           0.6628            0.5882
+
+--------------------------------------------XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX-------------------------
+
+Confusion Matrix and Statistics
+
+             Reference
+Prediction    intentional natural negligent rekindling
+  intentional           4       7       112        525
+  natural               1       0         1         29
+  negligent             9      11       612        617
+  rekindling            0       0        18        303
+
+Overall Statistics
+                                          
+               Accuracy : 0.4086          
+                 95% CI : (0.3882, 0.4293)
+    No Information Rate : 0.6554          
+    P-Value [Acc > NIR] : 1               
+                                          
+                  Kappa : 0.1799          
+                                          
+ Mcnemar's Test P-Value : <2e-16          
+
+Statistics by Class:
+
+                     Class: intentional Class: natural Class: negligent Class: rekindling
+Sensitivity                    0.285714       0.000000           0.8237            0.2056
+Specificity                    0.711857       0.986105           0.5770            0.9768
+Pos Pred Value                 0.006173       0.000000           0.4900            0.9439
+Neg Pred Value                 0.993754       0.991885           0.8690            0.3926
+Prevalence                     0.006225       0.008004           0.3304            0.6554
+Detection Rate                 0.001779       0.000000           0.2721            0.1347
+Detection Prevalence           0.288128       0.013784           0.5554            0.1427
+Balanced Accuracy              0.498786       0.493052           0.7004            0.5912

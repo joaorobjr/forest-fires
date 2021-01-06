@@ -77,14 +77,9 @@ require(measurements)
 require(lubridate)
 require(ggplot2)
 require(devtools)
-require(mlbench)
 require(caret)
-require(performanceEstimation)
-require(e1071)
+require(Boruta)
 require(nnet)
-require(neuralnet)
-require(naivebayes)
-require(rpart.plot)
 
 # turns off scientific notation; to turn it back on, use scipen= 0
 options(scipen= 999)
@@ -92,7 +87,6 @@ options(scipen= 999)
 
 
 
-# Abstract {-}
 
 # Introduction
 
@@ -129,11 +123,6 @@ fires.raw = as_tibble(read.csv("data/fires2015_train.csv",
                                stringsAsFactors = FALSE, 
                                na.strings = c("-", "","NA"), 
                                encoding = "UTF-8"))
-
-#fires.test.raw <- read.csv(fires.test.path, stringsAsFactors = FALSE, 
-#                           na.strings = c("-", "","NA"), 
-#                           encoding = "UTF-8")
-
 ```
 
 
@@ -269,7 +258,7 @@ The lat variable had to be corrected because we observed that incorrect values l
 ```{r echo=FALSE}
 idx.lat.wrong = which(str_detect(fires.raw$lat, '1900-01-01'))
 lat.wrong = fires.raw[idx.lat.wrong,]
-#head(select(lat.wrong$lat, lat.wrong$lon))
+head(select(lat.wrong$lat, lat.wrong$lon))
 ```
 
 The number of observations with wrong value in lat variable were detected and the total number of them is showed below.
@@ -309,7 +298,7 @@ Insert latitude and longitude for parish with missing values
 ```{r echo=FALSE}
 idx.latlon.na = which(is.na(fires.raw$lat) & is.na(fires.raw$lon))
 latlon.na = fires.raw[idx.latlon.na,]
-#head(select(latlon.na$parish, latlon.na$lat, latlon.na$lon))
+head(select(latlon.na$parish, latlon.na$lat, latlon.na$lon))
 ```
 Alentejo - Évora - Mora - Cabeção
 ```{r echo=FALSE}
@@ -393,7 +382,7 @@ df_status(fires.raw)
 
 Marking a check point
 ```{r echo=FALSE}
-#save(fires.raw, file = "fires.raw.RData")
+
 load("fires.raw.RData")
 ```
 
@@ -401,25 +390,7 @@ load("fires.raw.RData")
 
 
 
-Creating new features
-Variable alert 
-```{r echo=FALSE}
-fires.raw <- fires.raw %>% rowwise() %>% 
-  mutate(alert = ymd_hms(str_c(alert_date, alert_hour, sep=" ")),
-         extinction = ymd_hms(str_c(extinction_date, extinction_hour, sep=" ")),
-         firstInterv = ymd_hms(str_c(firstInterv_date, firstInterv_hour, sep=" ")),
-         latency_alert_interv = (firstInterv - alert)/60,
-         latency_interv_ext = (extinction - firstInterv)/60,
-         latency_alert_ext = (extinction - alert)/60)
 
-fires.raw <- as_tibble(fires.raw)
-df_status(fires.raw)
-```
-
--------------save(fires.raw, file = "fires.raw.RData")-----
-```{r echo=FALSE}
-load("fires.raw.RData")
-```
 
 
 ## Feature Engineering
@@ -445,18 +416,22 @@ First, we rename the dataset and extracted some variables to minimize it.
 The variables "parish" and "municipality" have many diferent observations,
 "id" can be retired because it is only the number of the lines of dataset and we don´t need this column, "region" has 501 NA´s and we don´t have how to substitute them, "alert_source" only has NA´s and it can be removed.
 ```{r echo = FALSE}
-ffires.rf = ffires
-ffires.rf = ffires.rf %>% select(-id, -region, -municipality, -parish, -alert_source, -alert_date, -alert_hour, -firstInterv_date, -firstInterv_hour, -extinction_date, -extinction_hour)
-ffires.rf = ffires.rf %>% filter(!is.na(extinction))
-ffires.rf = ffires.rf %>% filter(!is.na(firstInterv))
+load("ffiresFull.RData")
+
 ```
 
-We changed variables to numeric.
+
+# Selection of relevant features (remove redundancy) ----
 ```{r echo = FALSE}
-ffires.rf$lat = as.numeric(ffires.rf$lat)
-ffires.rf$lon = as.numeric(ffires.rf$lon)
-ffires.rf$latency_alert_ext = as.numeric(ffires.rf$latency_alert_ext)
-ffires.rf$latency_alert_interv = as.numeric(ffires.rf$latency_alert_interv)
-ffires.rf$latency_interv_ext = as.numeric(ffires.rf$latency_interv_ext)
-df_status(ffires.rf)
+ffires = ffires.full %>% select(district, origin, alert_month, alert_period, duration, village_area, vegetation_area, farming_area, tavg, tavg15d, prcp, cause_type)
+```
+
+# fix data type
+```{r echo = FALSE}
+ffires$alert_month = as.factor(ffires$alert_month)
+ffires$alert_period = as.factor(ffires$alert_period)
+ffires$duration = as.numeric(ffires$duration)
+ffires = ffires %>% filter(!is.na(duration))
+
+df_status(ffires)
 ```
