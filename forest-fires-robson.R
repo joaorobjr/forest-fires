@@ -240,7 +240,20 @@ ffires$alert_period = if_else(between(hour(ffires$alert),6,11),"Morning",if_else
 #Create feature: duration
 ffires = ffires %>% rowwise() %>% mutate(duration = (extinction-alert)/60)
 
+
+
+
 ffires.full = as_tibble(ffires)
+
+idx.extinction.wrong = which(ffires.full$latency_alert_ext<0)
+for (idx in idx.extinction.wrong) {
+  print(ffires.full[idx,]$extinction)
+  ffires.full[idx,]$extinction = ffires.full[idx,]$extinction + ddays(1)
+  print(ffires.full[idx,]$extinction)
+}
+
+#Create feature: duration
+ffires.full = ffires.full %>% rowwise() %>% mutate(duration = (extinction-alert)/60)
 
 save(ffires.full, file = "ffiresFull.RData")
 
@@ -293,13 +306,22 @@ print(boruta)
 plot(boruta)
 attStats(boruta)
 
+# Refazer o train set e o teste se com base no resultado do RFE e do Boruta, 
+# ou seja, remover a variavel PRCP
+ffires = ffires %>% select(-prcp)
+
+set.seed(123456)
+idx.trainset = createDataPartition(ffires$cause_type, p = 0.7, list = FALSE)
+trainSet = ffires[ idx.trainset,] 
+testSet <- ffires[-idx.trainset,]
+
 ctrl <- trainControl(method = "cv", number = 10, verboseIter = TRUE)
 
 # Create Model: Random Forest
 rfModel <- train(cause_type ~ ., data = trainSet, method = "rf", trControl = ctrl)
 save(rfModel, file = "rfModel.RData")
 
-# Create Model: Logist Regression
+# Create Model: Logist Regression (Multinominal)
 lrModel <- train(cause_type ~ ., data = trainSet, method = "multinom", trControl = ctrl)
 save(lrModel, file = "lrModel.RData")
 
@@ -307,13 +329,32 @@ save(lrModel, file = "lrModel.RData")
 nnModel <- train(cause_type ~ ., data = trainSet, method = "nnet", trControl = ctrl)
 save(nnModel, file = "nnModel.RData")
 
+load("rfModel.RData")
+load("lrModel.RData")
+load("nnModel.RData")
+
+rfModel$results
+lrModel$results
 nnModel$results
 
-
-load("rfModel.RData")
 plot(varImp(rfModel))
 plot(varImp(lrModel))
-plot(varImp(nnModel$method))
+plot(varImp(nnModel))
+
+
+#TEST ZONE (NOT RUN) -----------------------------------------------------------------------------
+
+# Create Model: Linear Discriminants
+ldModel <- train(cause_type ~ ., data = trainSet, method = "pda", trControl = ctrl)
+save(ldModel, file = "ldModel.RData")
+
+# Create Model: AdaBoost
+ctrl <- trainControl(method = "cv", number = 10, verboseIter = TRUE)
+abModel <- train(cause_type ~ ., data = trainSet, method = "AdaBoost.M1", trControl = ctrl, 
+                 mfinal=10, coeflearn = "Breiman")
+save(abModel, file = "abModel.RData")
+
+
 
 
 lrModel$censored
@@ -345,11 +386,6 @@ exp(coef(lrModel))
 
 p_hat <- fitted(lrModel)
 head(round(p_hat, digits=5))
-
-
-
-
-
 
 
 
