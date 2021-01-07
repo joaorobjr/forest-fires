@@ -30,3 +30,17 @@ latency_alert_interv
 > R2(predsTree,ffires.rf_test_cause)
      intentional    natural  negligent  rekindling
 [1,]  0.07266154 0.03219893 0.01836214 0.006858589
+
+----------------- XXXXXXXXXXXXXXXXXXXXXXX -----------------------
+
+treeffires.rf$variable.importance
+         origin     alert_month         tavg15d            tavg    farming_area 
+     181.520416      166.969169      161.346626      142.589619      141.747784 
+       district vegetation_area    village_area    alert_period        duration 
+     138.002028       34.126763       21.352957       11.779953        3.341781 
+> predsTree <- predict(treeffires.rf,ffires.rf_test)
+> RMSE(predsTree,ffires.rf_test_cause)
+[1] 2.544681
+> R2(predsTree,ffires.rf_test_cause)
+     intentional   natural negligent   rekindling
+[1,]  0.07013838 0.0202781 0.0320798 0.0002054259

@@ -235,7 +235,7 @@ ffires = as_tibble(ffires)
 
 #save(ffires, file = "ffires.RData")
 
-load("ffires.RData")
+load("C:/Users/edamr/OneDrive/햞ea de Trabalho/Teste DM1/forest-fires/ffires.RData")
 
 df_status(ffires)
 
@@ -259,12 +259,16 @@ ffires.rf$latency_alert_ext = as.numeric(ffires.rf$latency_alert_ext)
 ffires.rf$latency_alert_interv = as.numeric(ffires.rf$latency_alert_interv)
 ffires.rf$latency_interv_ext = as.numeric(ffires.rf$latency_interv_ext)
 
+# Refazer o train set e o teste se com base no resultado do RFE e do Boruta, 
+# ou seja, remover a variavel PRCP
+ffires = ffires %>% select(-prcp)
+
 #creating train and test datasets
-df_status(ffires.rf)
+df_status(ffires)
 set.seed(123456)
-idx.trainset = createDataPartition(ffires.rf$cause_type, p = 0.7, list = FALSE)
-trainSet = ffires.rf[ idx.trainset,] 
-testSet <- ffires.rf[-idx.trainset,]
+idx.trainset = createDataPartition(ffires$cause_type, p = 0.7, list = FALSE)
+trainSet = ffires[idx.trainset,] 
+testSet <- ffires[-idx.trainset,]
 
 
 #rfFit <- train(cause_type ~ ., data = trainSet, method = "rf")
@@ -403,18 +407,6 @@ ggplot(fires.raw, aes(x = district, y = month(alert_date, label = T))) +  theme(
 ggplot(fires.raw, aes(x = region, y = month(alert_date, label = T))) +  theme(axis.text.x = element_text(angle = 90)) + geom_point(aes(color = cause_type)) + ggtitle("Relationship between region and month") + labs(x="Region", y="Months")
 
 
-
-#----------CREATING DATASETS OF TRAIN AND TEST-------
-#library(caret)
-#generate the same datasets in any computer
-#set.seed(123)
-#generate randomly a dataset
-#lines <- createDataPartition(y=ffires.rf$cause_type,p=.7,list=FALSE)
-#divide into two datasets
-#ffires.rf_train <- ffires.rf %>% slice(lines)
-#ffires.rf_test <- ffires.rf %>% slice(-lines)
-
-
 #-------------------------DECISION TREE -----------------------
 #preparing the train and test datasets
 ffires.rf_train <- trainSet
@@ -433,7 +425,6 @@ treeffires.rf$variable.importance
 predsTree <- predict(treeffires.rf,ffires.rf_test)
 RMSE(predsTree,ffires.rf_test_cause)
 R2(predsTree,ffires.rf_test_cause)
-
 
 #------------------------KNN--------------------------------
 ffires.rf_train <- trainSet
@@ -456,7 +447,16 @@ knn.confM <- confusionMatrix(ffires.rf_test_causes,knn.preds)
 knn.confM
 
 #repeat the process for different k쨈s
+knnmodel <- knn.model
+knnpreds <- knn.preds
+knnconfM <- knn.confM
 
+save(knnmodel, file = "C:/Users/edamr/OneDrive/햞ea de Trabalho/Teste DM1/forest-fires/knnModel.RData")
+load("C:/Users/edamr/OneDrive/햞ea de Trabalho/Teste DM1/forest-fires/knnModel.RData")
+save(knnpreds, file = "C:/Users/edamr/OneDrive/햞ea de Trabalho/Teste DM1/forest-fires/knnPredict.RData")
+load("C:/Users/edamr/OneDrive/햞ea de Trabalho/Teste DM1/forest-fires/knnPredict.RData")
+save(knnconfM, file = "C:/Users/edamr/OneDrive/햞ea de Trabalho/Teste DM1/forest-fires/knnConfm.RData")
+load("C:/Users/edamr/OneDrive/햞ea de Trabalho/Teste DM1/forest-fires/knnConfm.RData")
 
 
 #--------------------------------BAYES---------------------
@@ -465,10 +465,12 @@ ffires.rf_test <- testSet
 #all the variables have to be numerics
 ffires.rf_train$district <-as.numeric(as.factor(ffires.rf_train$district))
 ffires.rf_train$origin <-as.numeric(as.factor(ffires.rf_train$origin))
+ffires.rf_train$alert_month <-as.numeric(as.factor(ffires.rf_train$alert_month))
+ffires.rf_train$alert_period <-as.numeric(as.factor(ffires.rf_train$alert_period))
 ffires.rf_test$district <-as.numeric(as.factor(ffires.rf_test$district))
+ffires.rf_test$alert_month <-as.numeric(as.factor(ffires.rf_test$alert_month))
+ffires.rf_test$alert_period <-as.numeric(as.factor(ffires.rf_test$alert_period))
 ffires.rf_test$origin <-as.numeric(as.factor(ffires.rf_test$origin))
-ffires.rf_train = ffires.rf_train %>% select(-alert, -extinction, -firstInterv)
-ffires.rf_test = ffires.rf_test %>% select(-alert, -extinction, -firstInterv)
 
 #variable to be predicted
 ffires.rf_test_cause <- ffires.rf_test$cause_type
@@ -480,6 +482,16 @@ nb.preds <- predict(nb.model,ffires.rf_test)
 nb.confM <- confusionMatrix(ffires.rf_test_cause,nb.preds)
 nb.confM
 #laplace was changed but don쨈t altered the result so much
+nbmodel <- nb.model
+nbpreds <- nb.preds
+nbconfM <- nb.confM
+
+save(nbmodel, file = "C:/Users/edamr/OneDrive/햞ea de Trabalho/Teste DM1/forest-fires/nbModel.RData")
+load("C:/Users/edamr/OneDrive/햞ea de Trabalho/Teste DM1/forest-fires/nbModel.RData")
+save(nbpreds, file = "C:/Users/edamr/OneDrive/햞ea de Trabalho/Teste DM1/forest-fires/nbPredict.RData")
+load("C:/Users/edamr/OneDrive/햞ea de Trabalho/Teste DM1/forest-fires/nbPredict.RData")
+save(nbconfM, file = "C:/Users/edamr/OneDrive/햞ea de Trabalho/Teste DM1/forest-fires/nbConfm.RData")
+load("C:/Users/edamr/OneDrive/햞ea de Trabalho/Teste DM1/forest-fires/nbConfm.RData")
 
 #-----------------------------   SVM   -----------------------
 ffires.rf_train <- trainSet
@@ -518,10 +530,8 @@ res2 <- performanceEstimation(PredTask(cause_type ~ .,ffires.rf_train),
 #finding the best performance
 topPerformers(res2,max=TRUE)
 getWorkflow("svm.v1",res2)
-#pres <- pairedComparisons(res2)
+pres <- pairedComparisons(res2)
 signifDiffs(pres)
-#pres <- pairedComparisons(res2,baseline = "svm.v1")
-#signifDiffs(pres)
 
 #------------------------NEURAL NETWORKS----------------------
 ffires.rf_train <- trainSet
@@ -530,12 +540,18 @@ ffires.rf_train_num = ffires.rf_train
 #only works with numeric variables
 ffires.rf_train_num$district <-as.numeric(as.factor(ffires.rf_train_num$district))
 ffires.rf_train_num$origin <-as.numeric(as.factor(ffires.rf_train_num$origin))
-ffires.rf_train_num = ffires.rf_train_num %>% select(-alert, -extinction, -firstInterv)
+ffires.rf_train_num$alert_month <-as.numeric(as.factor(ffires.rf_train_num$alert_month))
+ffires.rf_train_num$alert_period <-as.numeric(as.factor(ffires.rf_train_num$alert_period))
 
 m <- neuralnet(cause_type ~.,ffires.rf_train_num,hidden=1)
 m
 plot(m)
 m <- nnet(cause_type ~.,ffires.rf_train_num,size=1,maxit=200)
+
+mmodel <- m
+save(mmodel, file = "C:/Users/edamr/OneDrive/햞ea de Trabalho/Teste DM1/forest-fires/mNeuralModel.RData")
+load("C:/Users/edamr/OneDrive/햞ea de Trabalho/Teste DM1/forest-fires/mNeuralModel.RData")
+
 #res <- performanceEstimation(PredTask(cause_type ~.,ffires.rf_train_num),
 #                             workflowVariants(learner="nnet", learner.pars=list(size=1:(ncol(ffires.rf_train_num)-1))),
 #                            EstimationTask(metrics="mae"))
