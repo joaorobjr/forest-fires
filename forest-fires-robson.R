@@ -8,7 +8,12 @@ library(devtools)
 library(caret)
 library(Boruta)
 library(nnet)
+library(pROC)
+library(rpart)
+library(rpart.plot)
+
 options(noaakey = "mqEuOSuAUjyuGlTjVjxxCpzRlbrooRnr")
+options(scipen= 999)
 
 #Load raw data --------------------------------------------------
 fires.raw = as_tibble(read.csv("data/fires2015_train.csv",
@@ -125,7 +130,7 @@ df_status(fires.raw)
 #save(fires.raw, file = "fires.raw.RData")
 load("fires.raw.RData")
 
-# MERGE WEATHER DATA AND FOREST FIRES --------------------------------------------
+# MERGE WEATHER DATA AND FOREST FIRES 
 load("data/station_data.Rdata")
 
 get_nearby_stations = function (df, measure){
@@ -240,16 +245,12 @@ ffires$alert_period = if_else(between(hour(ffires$alert),6,11),"Morning",if_else
 #Create feature: duration
 ffires = ffires %>% rowwise() %>% mutate(duration = (extinction-alert)/60)
 
-
-
-
 ffires.full = as_tibble(ffires)
 
+# Fix 
 idx.extinction.wrong = which(ffires.full$latency_alert_ext<0)
 for (idx in idx.extinction.wrong) {
-  print(ffires.full[idx,]$extinction)
   ffires.full[idx,]$extinction = ffires.full[idx,]$extinction + ddays(1)
-  print(ffires.full[idx,]$extinction)
 }
 
 #Create feature: duration
@@ -306,6 +307,8 @@ print(boruta)
 plot(boruta)
 attStats(boruta)
 
+# FIT MODELS ----------------------------------------------------------------------
+
 # Refazer o train set e o teste se com base no resultado do RFE e do Boruta, 
 # ou seja, remover a variavel PRCP
 ffires = ffires %>% select(-prcp)
@@ -315,51 +318,252 @@ idx.trainset = createDataPartition(ffires$cause_type, p = 0.7, list = FALSE)
 trainSet = ffires[ idx.trainset,] 
 testSet <- ffires[-idx.trainset,]
 
-ctrl <- trainControl(method = "cv", number = 10, verboseIter = TRUE)
+ctrl <- trainControl(method = "cv", number = 10, savePredictions = "final", classProbs = T, verboseIter = TRUE)
 
-# Create Model: Random Forest
-rfModel <- train(cause_type ~ ., data = trainSet, method = "rf", trControl = ctrl)
-save(rfModel, file = "rfModel.RData")
+# Distance-Based Approach -----------------------------------------------------------
 
-# Create Model: Logist Regression (Multinominal)
-lrModel <- train(cause_type ~ ., data = trainSet, method = "multinom", trControl = ctrl)
-save(lrModel, file = "lrModel.RData")
+# KNN ----
+knnModel <- train(cause_type ~ ., data = trainSet, method = "kknn", trControl = ctrl)
+#save(knnModel, file = "models/knnModel.RData")
+#load("models/knnModel.RData")
+knnModel
+knnModel$pred
+knnModel$results
+knnModel$bestTune
+knnModel$finalModel
+confusionMatrix(knnModel)
 
-# Create Model: Neural Networks
-nnModel <- train(cause_type ~ ., data = trainSet, method = "nnet", trControl = ctrl)
-save(nnModel, file = "nnModel.RData")
+# Make predictions
+knnPredict = predict(knnModel, testSet)
+# Model accuracy
+mean(knnPredict == testSet$cause_type)
 
-load("rfModel.RData")
-load("lrModel.RData")
-load("nnModel.RData")
+# Probabilistic Approach ------------------------------------------------------------
 
-rfModel$results
+# Naive Bayes ----
+nbModel <- train(cause_type ~ ., data = trainSet, method = "naive_bayes", trControl = ctrl)
+#save(nbModel, file = "models/nbModel.RData")
+#load("models/nbModel.RData")
+nbModel
+nbModel$pred
+nbModel$results
+nbModel$bestTune
+nbModel$finalModel
+confusionMatrix(nbModel)
+
+# Make predictions
+nbPredict = predict(nbModel, testSet)
+# Model accuracy
+mean(nbPredict == testSet$cause_type)
+
+# Logist Regression (Multinominal) ----
+lrModel <- train(cause_type ~ ., data = trainSet, method = "multinom", trControl = ctrl,)
+#save(lrModel, file = "models/lrModel.RData")
+#load("models/lrModel.RData")
+lrModel
+lrModel$pred
 lrModel$results
-nnModel$results
+lrModel$bestTune
+lrModel$finalModel
+confusionMatrix(lrModel)
 
-plot(varImp(rfModel))
-plot(varImp(lrModel))
-plot(varImp(nnModel))
+# Make predictions
+lrPredict = predict(lrModel, testSet)
+# Model accuracy
+mean(lrPredict == testSet$cause_type)
+
+# Mathematical Approach -------------------------------------------------------------
+
+# Linear Discriminants ----
+ldaModel <- train(cause_type ~ ., data = trainSet, method = "lda", trControl = ctrl)
+#save(ldaModel, file = "models/ldaModel.RData")
+#load("models/ldaModel.RData")
+ldaModel
+ldaModel$pred
+ldaModel$results
+ldaModel$bestTune
+ldaModel$finalModel
+confusionMatrix(ldaModel)
+
+# Make predictions
+ldaPredict = predict(ldaModel, testSet)
+# Model accuracy
+mean(ldaPredict == testSet$cause_type)
+
+# Linear Discriminants (Penalized Discriminant Analysis) ----
+pdaModel <- train(cause_type ~ ., data = trainSet, method = "pda", trControl = ctrl)
+#save(pdaModel, file = "models/pdaModel.RData")
+#load("models/pdaModel.RData")
+pdaModel
+pdaModel$pred
+pdaModel$results
+pdaModel$bestTune
+pdaModel$finalModel
+confusionMatrix(pdaModel)
+
+# Make predictions
+pdaPredict = predict(pdaModel, testSet)
+# Model accuracy
+mean(pdaPredict == testSet$cause_type)
+
+# Logical Approach -----------------------------------------------------------------
+
+# Decision Tree ----
+treeModel <- train(cause_type ~ ., data = trainSet, method = "rpart", trControl = ctrl)
+#save(treeModel, file = "models/treeModel.RData")
+#load("models/treeModel.RData")
+treeModel
+treeModel$pred
+treeModel$results
+treeModel$bestTune
+treeModel$finalModel
+confusionMatrix(treeModel)
+#Plot tree
+prp(treeModel$finalModel, box.palette = "Reds", tweak = 1.2)
+
+# Make predictions
+treePredict = predict(treeModel, testSet)
+# Model accuracy
+mean(treePredict == testSet$cause_type)
+
+# Tree Bag ----  
+tbModel <- train(cause_type ~ ., data = trainSet, method = "treebag", trControl = ctrl)
+#save(tbModel, file = "models/tbModel.RData")
+#load("models/tbModel.RData")
+tbModel
+tbModel$pred
+tbModel$results
+tbModel$bestTune
+tbModel$finalModel
+confusionMatrix(tbModel)
+
+# Make predictions
+tbPredict = predict(tbModel, testSet)
+# Model accuracy
+mean(tbPredict == testSet$cause_type)
+
+# Optimization Approach ------------------------------------------------------------
+
+# Neural Networks ----
+nnModel <- train(cause_type ~ ., data = trainSet, method = "nnet", trControl = ctrl)
+#save(nnModel, file = "models/nnModel.RData")
+#load("models/nnModel.RData")
+nnModel
+nnModel$pred
+nnModel$results
+nnModel$bestTune
+nnModel$finalModel
+confusionMatrix(nnModel)
+
+# Make predictions
+nnPredict = predict(nnModel, testSet)
+# Model accuracy
+mean(nnPredict == testSet$cause_type)
+
+# SVM Linear ----
+svmLinModel <- train(cause_type ~ ., data = trainSet, method = "svmLinear2", trControl = ctrl)
+#save(svmLinModel, file = "models/svmLinModel.RData")
+#load("models/smvLinModel.RData")
+svmLinModel
+svmLinModel$pred
+svmLinModel$results
+svmLinModel$bestTune
+svmLinModel$finalModel
+confusionMatrix(svmLinModel)
+
+# Make predictions
+svmLinPredict = predict(svmLinModel, testSet)
+# Model accuracy
+mean(svmLinPredict == testSet$cause_type)
+
+# SVM Poly ----
+svmPolModel <- train(cause_type ~ ., data = trainSet, method = "svmPoly", trControl = ctrl)
+#save(svmPolModel, file = "models/svmPolModel.RData")
+#load("models/smvPolModel.RData")
+svmPolModel
+svmPolModel$pred
+svmPolModel$results
+svmPolModel$bestTune
+svmPolModel$finalModel
+confusionMatrix(svmPolModel)
+
+# Make predictions
+svmPolPredict = predict(svmPolModel, testSet)
+# Model accuracy
+mean(svmPolPredict == testSet$cause_type)
+
+# SVM Radial ----
+svmRadModel <- train(cause_type ~ ., data = trainSet, method = "svmRadial", trControl = ctrl)
+#save(svmRadModel, file = "models/svmRadModel.RData")
+#load("models/smvRadModel.RData")
+svmRadModel
+svmRadModel$pred
+svmRadModel$results
+svmRadModel$bestTune
+svmRadModel$finalModel
+confusionMatrix(svmRadModel)
+
+# Make predictions
+svmRadPredict = predict(svmRadModel, testSet)
+# Model accuracy
+mean(svmRadPredict == testSet$cause_type)
+
+# Ensembles ------------------------------------------------------------------------
+
+# Random Forest ----
+rfModel <- train(cause_type ~ ., data = trainSet, method = "rf", trControl = ctrl)
+#save(rfModel, file = "models/rfModel.RData")
+#load("models/rfModel.RData")
+rfModel$
+rfModel$pred
+rfModel$results
+rfModel$bestTune
+rfModel$finalModel
+confusionMatrix(rfModel)
+
+# Make predictions
+rfPredict = predict(rfModel, testSet)
+# Model accuracy
+mean(rfPredict == testSet$cause_type)
+
+# XGBoost ----
+xgbModel <- train(cause_type ~ ., data = trainSet, method = "xgbTree", trControl = ctrl)
+#save(xgbModel, file = "models/xgbModel.RData")
+#load("models/xgbModel.RData")
+xgbModel
+xgbModel$pred
+xgbModel$results
+xgbModel$bestTune
+xgbModel$finalModel
+confusionMatrix(xgbModel)
+
+# Make predictions
+xgbPredict = predict(xgbModel, testSet)
+# Model accuracy
+mean(xgbPredict == testSet$cause_type)
+
+
+# ASSESS MODELS PERFORMANCE -------------------------------------------------------
+
+rs <- resamples(list("K-Nearest Neighbors" = knnModel,
+                     "Naive Bayes" = nbModel,
+                     "Logistic Regression" = lrModel,
+                     "Linear Discriminants" = ldaModel,
+                     "Penalized Discriminants" = pdaModel,
+                     "Decision Tree" = treeModel, 
+                     "Tree Bag" = tbModel,
+                     "Neural Networks" = nnModel,
+                     "SVM (Linear)" = svmLinModel,
+                     "SVM (Poly)" = svmPolModel,
+                     "SVM (Radial)" = svmRadModel,
+                     "Random Forest" = rfModel, 
+                     "XGBoost" = xgbModel)) 
+                     
+summary(rs)
+
 
 
 #TEST ZONE (NOT RUN) -----------------------------------------------------------------------------
-
-# Create Model: Linear Discriminants
-ldModel <- train(cause_type ~ ., data = trainSet, method = "pda", trControl = ctrl)
-save(ldModel, file = "ldModel.RData")
-
-# Create Model: AdaBoost
-ctrl <- trainControl(method = "cv", number = 10, verboseIter = TRUE)
-abModel <- train(cause_type ~ ., data = trainSet, method = "AdaBoost.M1", trControl = ctrl, 
-                 mfinal=10, coeflearn = "Breiman")
-save(abModel, file = "abModel.RData")
-
-
-
-
-lrModel$censored
-
-
 
 # Fit the model
 lrModel <- multinom(cause_type ~., data = trainSet)
@@ -371,7 +575,7 @@ lrModel$AIC
 
 # Summarize the model
 summary(lrModel)
-summary(lrModel)$coefficients[tavg,]
+
 # Make predictions
 predicted.classes <- lrModel %>% predict(testSet)
 
@@ -386,18 +590,3 @@ exp(coef(lrModel))
 
 p_hat <- fitted(lrModel)
 head(round(p_hat, digits=5))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
