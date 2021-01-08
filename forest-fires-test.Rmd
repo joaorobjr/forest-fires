@@ -1,11 +1,9 @@
 ---
 title: "Forest Fires in Portugal - What Are The Causes?"
-subtitle: "Practical Assignment of Data Mining I"
 author: "By Robson Teixeira, Eduardo Rodrigues and Claudio Rocha"
 date: "M:CC -- FCUP, 10/01/2021"
 output:
-  pdf_document:
-    #citation_package: natbib
+  bookdown::pdf_document2:
     df_print: tibble
     fig_caption: yes
     fig_crop: no
@@ -13,15 +11,8 @@ output:
     fig_width: 7
     number_sections: yes
     toc: yes
-  html_notebook: 
+  bookdown::html_document2:
     code_folding: hide
-    df_print: default
-    number_sections: yes
-    toc: yes
-    toc_float: yes
-  html_document:
-    #df_print: paged
-    code_folding: "hide"
     df_print: tibble
     fig_caption: yes
     includes:
@@ -30,17 +21,20 @@ output:
     theme: cerulean
     toc: yes
     toc_float: yes
+  html_notebook:
+    code_folding: hide
+    df_print: default
+    number_sections: yes
+    toc: yes
+    toc_float: yes
+subtitle: Practical Assignment of Data Mining I
 geometry:
 - top=25mm
 - bottom=25mm
 - left=25mm
 - right=20mm
 - heightrounded
-header-includes:
-  \usepackage{caption}
-  \usepackage{fancyhdr}
-  \usepackage{lmodern}
-  \usepackage[detect-all]{siunitx}
+header-includes: \usepackage{caption} \usepackage{fancyhdr} \usepackage{lmodern} \usepackage[detect-all]{siunitx}
 highlight-style: pygments
 linkcolor: blue
 mainfont: Source Variable Pro
@@ -49,18 +43,18 @@ sansfont: Source Sans Pro
 documentclass: report
 urlcolor: blue
 references:
-- type: article-journal   
+- type: article-journal
   id: geosciences10020053
   title: Mapping the Causes of Forest Fires in Portugal by Clustering Analysis
   author:
-    - family: Meira Castro
-      given: Ana C.
-    - family: Nunes
-      given: Adélia 
-    - family: Sousa
-      given: António
-    - family: Lourenço
-      given: Luciano
+  - family: Meira Castro
+    given: Ana C.
+  - family: Nunes
+    given: Adélia
+  - family: Sousa
+    given: António
+  - family: Lourenço
+    given: Luciano
   publisher: Geosciences
   issued:
     year: 2020
@@ -80,7 +74,9 @@ require(devtools)
 require(caret)
 require(Boruta)
 require(nnet)
-
+require(pROC)
+require(rpart)
+require(rpart.plot)
 # turns off scientific notation; to turn it back on, use scipen= 0
 options(scipen= 999)
 ```
@@ -90,7 +86,10 @@ options(scipen= 999)
 
 # Introduction
 
-In this project, we try to find the best machine learning model that more accurately predicts whether a forest fire occurs negligently, intentionally, naturally or recurrently. From a database that was given to us, we divided the work into several parts. First, we analyzed the database according to the variables it contained ....
+In this project, we try to find the best machine learning model that more accurately predicts whether a forest fire occurs negligently, intentionally, naturally or recurrently. From a database that was given to us, we divided the work into several parts.
+
+The remainder of this report is organized as follows: in chapter 2, we describe the importance of predicting forest fires that are a big problem actually; in chapter 3 is described the causes ofnthe ocurrences that is the variable that the model will be predict and a table with all the variables of  the original dataset; chapter 4 is dedicated to the exploration, cleaning and engineering of the data. Some graphics are plotted in this chapter and they help to visualize the origins and locations of the forest fires; the models used to test the dataset are described and compared in chapter 5; in chapter 6, We finalize with the main conclusions and the last chapter includes references.
+
 
 # Problem Definition
 
@@ -130,7 +129,7 @@ The dataset used in this study was provided by ICFN, and it contains the data on
 
 * **fires2015train.csv** --- the file contain the data of 7511 reported forest fires during 2015
 
-A summary of the structure of it and a glimpse of their first rows are provided below.
+A summary of the structure of the dataset is provided below.
 ```{r fires.raw-summary, echo = F}
 glimpse(fires.raw)
 head(fires.raw)
@@ -172,79 +171,7 @@ total_area        |numeric     |total area affected           |
 cause_type        |character   |cause of the fire             |
 
 
-## Graphic analysis
-
-
-1- Bar plot of forests fires during 2015
-
-```{r echo = FALSE, fig.align= "center"}
-ggplot(fires.raw, aes(x = month(alert_date, label = T))) +
-  geom_bar(fill = "red") +
-  ggtitle("Distribution of forests fires across 2015") +
-  labs(x="Months", y="Total")
-```
-
-Conclusion: july and august were the months with a great number of ocurrences
-
-
-2- Bar plot of forests fires during 2015 by region
-
-```{r echo = FALSE, fig.align= "center"}
-ggplot(fires.raw, aes(x = region)) +  theme(axis.text.x = element_text(angle = 90)) + geom_bar() + ggtitle("Distribution of forests fires by region") +
-  labs(x="Region", y="Total")
-```
-
-Conclusion: Entre Douro e Minho was the region with mores forests fires
-
-
-3- Bar plot of forests fires during 2015 by district
-
-```{r echo = FALSE, fig.align= "center"}
-ggplot(fires.raw, aes(x = district)) +  theme(axis.text.x = element_text(angle = 90))+geom_bar() + ggtitle("Distribution of forests fires by district") +
-  labs(x="District", y="Total")
-```
-
-
-Conclusion: Porto was the district with more forests fires
-
-
-4- Bar plot of forests fires during 2015 by causes
-
-```{r echo = FALSE, fig.align= "center"}
-ggplot(fires.raw, aes(x = cause_type)) + geom_bar(color = "black", fill = "light blue") + ggtitle("Distribution of causes of fires")+
-  labs(x="Causes of Fires", y="Total")
-```
-
-
-Conclusion: negligence was the big cause of the forests fires
-
-
-5- Bar plot of forests fires during 2015 by origin
-
-```{r echo = FALSE, fig.align= "center"}
-ggplot(fires.raw, aes(x = origin)) + geom_bar(fill = "blue") + ggtitle("Distribution of forests fires by origin across 2015")+
-  labs(x="Origin", y="Total")
-```
-
-
-Conclusion: firepit was the origin of the most forests fires
-
-
-6- Relationship between district, month and causes
-
-```{r echo = FALSE, fig.align= "center"}
-ggplot(fires.raw, aes(x = district, y = month(alert_date, label = T))) +  theme(axis.text.x = element_text(angle = 90)) + geom_point(aes(color = cause_type)) + ggtitle("Relationship between district, month and cause_type")+
-  labs(x="District", y="Months")
-```
-
-
-7- Relationship between region, month and causes
-
-```{r echo = FALSE, fig.align= "center"}
-ggplot(fires.raw, aes(x = region, y = month(alert_date, label = T))) +  theme(axis.text.x = element_text(angle = 90)) + geom_point(aes(color = cause_type)) + ggtitle("Relationship between region and month") + labs(x="Region", y="Months")
-```
-
-# Data Preparation
+# Exploratory data analysis and engineering
 
 ## Data Cleaning and Transforms: 
 We started to verify the dataset to identify and correct the mistakes and errors in the data.
@@ -258,7 +185,7 @@ The lat variable had to be corrected because we observed that incorrect values l
 ```{r echo=FALSE}
 idx.lat.wrong = which(str_detect(fires.raw$lat, '1900-01-01'))
 lat.wrong = fires.raw[idx.lat.wrong,]
-head(select(lat.wrong$lat, lat.wrong$lon))
+#head(select(lat.wrong$lat, lat.wrong$lon))
 ```
 
 The number of observations with wrong value in lat variable were detected and the total number of them is showed below.
@@ -286,7 +213,7 @@ vec_clean <- c("''"="", "E-12"="", "E-11"="", "E-02"="", ","=".", "º"=" ", "'"=
 fires.raw$lat <- conv_unit(str_replace_all(str_trim(fires.raw$lat), vec_clean), "deg_min_sec", "dec_deg")
 ```
 
-An warning occurred when this line was executed.
+
 ```{r echo=FALSE}
 fires.raw$lon <- conv_unit(str_replace_all(str_trim(fires.raw$lon, side = "both"), vec_clean), "deg_min_sec", "dec_deg")
 # Workaround
@@ -294,11 +221,11 @@ fires.raw$lon[7511] <- conv_unit("8 34 21.5868000000013", "deg_min_sec", "dec_de
 ```
 After the imputation, 8 NA´s values were assigned to observations in latitude and longitude variables
 
-Insert latitude and longitude for parish with missing values
+For parish with missing values we insert latitude and longitude 
 ```{r echo=FALSE}
 idx.latlon.na = which(is.na(fires.raw$lat) & is.na(fires.raw$lon))
 latlon.na = fires.raw[idx.latlon.na,]
-head(select(latlon.na$parish, latlon.na$lat, latlon.na$lon))
+#head(select(latlon.na$parish, latlon.na$lat, latlon.na$lon))
 ```
 Alentejo - Évora - Mora - Cabeção
 ```{r echo=FALSE}
@@ -364,32 +291,18 @@ fires.raw$origin = as.factor(fires.raw$origin)
 fires.raw$cause_type = as.factor(fires.raw$cause_type)
 ```
 
-Creating new features
+We create new features using the alerts that can be used on the analisys.
 
-Variable alert 
-```{r echo=FALSE}
-fires.raw <- fires.raw %>% rowwise() %>% 
-  mutate(alert = ymd_hms(str_c(alert_date, alert_hour, sep=" ")),
-         extinction = ymd_hms(str_c(extinction_date, extinction_hour, sep=" ")),
-         firstInterv = ymd_hms(str_c(firstInterv_date, firstInterv_hour, sep=" ")),
-         latency_alert_interv = (firstInterv - alert)/60,
-         latency_interv_ext = (extinction - firstInterv)/60,
-         latency_alert_ext = (extinction - alert)/60)
-
-fires.raw <- as_tibble(fires.raw)
-df_status(fires.raw)
-```
-
-Marking a check point
 ```{r echo=FALSE}
 
 load("fires.raw.RData")
+df_status(fires.raw)
 ```
 
 ----------------------------------XXXXXXXXXXXXXXXXXX----------------------
 
 
-
+## Statistical exploration of the variables
 
 
 
@@ -409,29 +322,86 @@ df_status(ffires)
 
 ```
 
-### Feature Selection
 
-Identifying those input variables that are most relevant to the task.
-First, we rename the dataset and extracted some variables to minimize it.
-The variables "parish" and "municipality" have many diferent observations,
-"id" can be retired because it is only the number of the lines of dataset and we don´t need this column, "region" has 501 NA´s and we don´t have how to substitute them, "alert_source" only has NA´s and it can be removed.
+## Data exploration
+
 ```{r echo = FALSE}
 load("ffiresFull.RData")
 
 ```
 
 
-# Selection of relevant features (remove redundancy) ----
-```{r echo = FALSE}
-ffires = ffires.full %>% select(district, origin, alert_month, alert_period, duration, village_area, vegetation_area, farming_area, tavg, tavg15d, prcp, cause_type)
+Based on the dataset we ploted some graphics that helped us to get some conclusions and showed a general notion about the problem of the forests fires.
+
+Figure \@ref(fig:month-ratings) depicts the bar graphic of the distribution of forests fires during 2015. The x-axis represents the months along the year 0f 2015 and the y-axis represents the total of fires that occurred by month.
+
+```{r month-ratings, echo = FALSE, fig.align= "center", fig.cap= "\\label{month-ratings}Barplot of the distribution of forests fires during 2015."}
+ggplot(fires.raw, aes(x = month(alert_date, label = T))) +
+  geom_bar(fill = "red") +
+  ggtitle("Distribution of forests fires across 2015") +
+  labs(x="Months", y="Total")
 ```
 
-# fix data type
-```{r echo = FALSE}
-ffires$alert_month = as.factor(ffires$alert_month)
-ffires$alert_period = as.factor(ffires$alert_period)
-ffires$duration = as.numeric(ffires$duration)
-ffires = ffires %>% filter(!is.na(duration))
+This graphic showed us that july and august are the months with the largest ocurrences and the period between march and september needs more atention. Probably we will consider the variable month as important to the analisys.
 
-df_status(ffires)
+In another graphic, figure \@ref(fig:region-ratings) we plotted the bar graphic of the distribution of forests fires by region. The x-axis represents the regions and the y-axis represents the total of fires that occurred by region.
+
+```{r region-ratings, echo = FALSE, fig.align= "center", fig.cap= "\\label{region-ratings}Barplot of the distribution of forests fires by regions."}
+ggplot(fires.raw, aes(x = region)) +  theme(axis.text.x = element_text(angle = 90)) + geom_bar() + ggtitle("Distribution of forests fires by region") +
+  labs(x="Region", y="Total")
 ```
+
+Observing this grafic we saw that Entre Douro e Minho was the region with more forests fires and other regions like Centro, Lisboa and Norte were with minimum occurrences.
+
+
+Another important graphic is the figure \@ref(fig:district-ratings) that corresponds to the distribution of forests fires by district. The x-axis represents the districts and the y-axis represents the total of fires that occurred by region.
+
+```{r district-ratings, echo = FALSE, fig.align= "center", fig.cap= "\\label{district-ratings}Barplot of the distribution of forests fires by districts."}
+ggplot(fires.raw, aes(x = district)) +  theme(axis.text.x = element_text(angle = 90))+geom_bar() + ggtitle("Distribution of forests fires by district") +
+  labs(x="District", y="Total")
+```
+
+This graphic indicates that Porto and Viana do Castelo were the districts with more forests fires.
+
+
+A bar plot of forests fires related with the causes of them, is being reported on figure \@ref(fig:causes-ratings). On the x-axis are listed the diferent causes and on y-axis represents the total of fires that occurred.
+
+```{r causes-ratings,echo = FALSE, fig.align= "center", fig.cap= "\\label{causes-ratings}Barplot of the distribution of forests fires by causes."}
+ggplot(fires.raw, aes(x = cause_type)) + geom_bar(color = "black", fill = "light blue") + ggtitle("Distribution of causes of fires")+
+  labs(x="Causes of Fires", y="Total")
+```
+
+A thing that calls our atention is the difference between the number of fires that were caused by negligence and by natural causes. The number of forest fires caused intentionally were almost the half of the negligent causes  what is an alarmant number.
+
+We plotted too a bar plot of forests fires during 2015 by origin, figure \@ref(fig:origin-ratings).On the x-axis are listed the diferent origins and on y-axis represents the total of fires that occurred.
+
+```{r origin-ratings, echo = FALSE, fig.align= "center", fig.cap= "\\label{origin-ratings}Barplot of the distribution of forests fires by origins."}
+ggplot(fires.raw, aes(x = origin)) + geom_bar(fill = "blue") + ggtitle("Distribution of forests fires by origin across 2015")+
+  labs(x="Origin", y="Total")
+```
+
+The firepit was the origin of the most forests fires comparing it with the other origins.
+
+
+The relationship between district, month and causes is represented on figure \@ref(fig:dismoncau-ratings). The x-axis includes the diferent districts, y-axis represents the months of ocurrences and the variable cause is showed by colours listed on the labels.
+
+```{r dismoncau-ratings, echo = FALSE, fig.align= "center", fig.cap= "\\label{dismoncau-ratings}Distribution of forests fires relating district, month and causes."}
+ggplot(fires.raw, aes(x = district, y = month(alert_date, label = T))) +  theme(axis.text.x = element_text(angle = 90)) + geom_point(aes(color = cause_type)) + ggtitle("Relationship between district, month and cause_type")+
+  labs(x="District", y="Months")
+```
+
+The relationship between region, month and causes is represented on figure \@ref(fig:regmoncau-ratings). The x-axis includes the diferent regions, y-axis represents the months of ocurrences and the variable cause is showed by colours listed on the labels.
+
+```{r regmoncau-ratings,echo = FALSE, fig.align= "center", fig.cap= "\\label{regmoncau-ratings}Distribution of forests fires relating region, month and causes."}
+ggplot(fires.raw, aes(x = region, y = month(alert_date, label = T))) +  theme(axis.text.x = element_text(angle = 90)) + geom_point(aes(color = cause_type)) + ggtitle("Relationship between region and month") + labs(x="Region", y="Months")
+```
+
+## Feature Selection
+
+# Models
+
+## Evaluation of the models used
+
+# Conclusions and Prospects
+
+# References
