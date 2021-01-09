@@ -443,7 +443,10 @@ ggplot(ffires.raw, aes(x = region, y = month(alert_date, label = T)))  + geom_po
 Another important graphic is the figure \@ref(fig:district-ratings) that corresponds to the distribution of forests fires by district. The y-axis represents the districts and the x-axis represents the total of fires that occurred by region.
 
 ```{r district-ratings, echo = FALSE, fig.align= "center", fig.cap= "\\label{district-ratings}Barplot of the distribution of forests fires by districts."}
-ggplot(ffires.raw, aes(x = district)) +  geom_bar() + ggtitle("Distribution of forests fires by district") +
+load("ffires.Rdata")
+ffires %>%
+  group_by(district) %>%
+  count(district) %>% ggplot(., aes(x = reorder(district, n), y = n)) +  geom_col() + ggtitle("Distribution of forests fires by district") +
   labs(x="District", y="Total") + 
   coord_flip()
 ```
@@ -465,7 +468,9 @@ Origin informs the reason that the fire started and apparently appears to be an 
 On the x-axis are listed the diferent origins and on y-axis represents the total of fires that occurred.
 
 ```{r origin-ratings, echo = FALSE, fig.align= "center", fig.cap= "\\label{origin-ratings}Barplot of the distribution of forests fires by origins."}
-ggplot(ffires.raw, aes(x = origin)) + geom_bar(fill = "blue") + ggtitle("Distribution of forests fires by origin across 2015")+
+ffires %>%
+  group_by(origin) %>%
+  count(origin) %>% ggplot(., aes(x = reorder(origin, n), y = n)) + geom_col(fill = "blue") + ggtitle("Distribution of forests fires by origin across 2015")+
   labs(x="Origin", y="Total")
 ```
 
@@ -477,7 +482,9 @@ This is the variable to be predicted by the model that will be chosen.It shows t
 On the x-axis are listed the diferent causes and on y-axis represents the total of fires that occurred.
 
 ```{r causes-ratings,echo = FALSE, fig.align= "center", fig.cap= "\\label{causes-ratings}Barplot of the distribution of forests fires by causes."}
-ggplot(ffires.raw, aes(x = cause_type)) + geom_bar(color = "black", fill = "light blue") + ggtitle("Distribution of causes of fires")+
+ffires %>%
+  group_by(cause_type) %>%
+  count(cause_type) %>% ggplot(., aes(x = reorder(cause_type, n), y = n)) + geom_col(color = "black", fill = "light blue") + ggtitle("Distribution of causes of fires")+
   labs(x="Causes of Fires", y="Total")
 ```
 
