@@ -12,6 +12,7 @@ library(pROC)
 library(rpart)
 library(rpart.plot)
 
+
 options(noaakey = "mqEuOSuAUjyuGlTjVjxxCpzRlbrooRnr")
 options(scipen= 999)
 
@@ -313,6 +314,11 @@ attStats(boruta)
 # ou seja, remover a variavel PRCP
 ffires = ffires %>% select(-prcp)
 
+idx.dist.VC = which(ffires$district == "Viana Do Castelo")
+for (idx in idx.dist.VC) {
+  ffires[idx,]$district = "Viana do Castelo" 
+}
+
 set.seed(123456)
 idx.trainset = createDataPartition(ffires$cause_type, p = 0.7, list = FALSE)
 trainSet = ffires[ idx.trainset,] 
@@ -334,9 +340,13 @@ knnModel$finalModel
 confusionMatrix(knnModel)
 
 # Make predictions
-knnPredict = predict(knnModel, testSet)
+knnPredict = predict(knnModel, testSet, type = "prob")
+multiclass.roc(testSet$cause_type, knnPredict, percent = T, plot = T)
+
 # Model accuracy
 mean(knnPredict == testSet$cause_type)
+
+multiclass.roc(testSet$cause_type, knnPredict, percent = T, plot = T)
 
 # Probabilistic Approach ------------------------------------------------------------
 
@@ -537,6 +547,8 @@ xgbModel$bestTune
 xgbModel$finalModel
 confusionMatrix(xgbModel)
 
+cmxgb$table
+
 # Make predictions
 xgbPredict = predict(xgbModel, testSet)
 # Model accuracy
@@ -561,9 +573,223 @@ rs <- resamples(list("K-Nearest Neighbors" = knnModel,
                      
 summary(rs)
 
+library(DALEX)
+
+predictors = testSet[,-11]
+outcome = testSet$cause_type
+
+explainer_knn <- explain(rfModel, predictors, outcome, label = "K-Nearest Neighbors")
+explainer_nb  <- explain(nbModel, predictors, outcome, label = "Naive Bayes")
+explainer_lr <- explain(lrModel, predictors, outcome, label = "Logistic Regression")
+explainer_lda <- explain(ldaModel, predictors, outcome, label = "Linear Discriminants")
+explainer_pda <- explain(pdaModel, predictors, outcome, label = "Penalized Discriminants")
+explainer_tree <- explain(treeModel, predictors, outcome, label = "Decision Tree")
+explainer_tb <- explain(tbModel, predictors, outcome, label = "Tree Bag")
+explainer_nn <- explain(nnModel, predictors, outcome, label = "Neural Networks")
+explainer_svmLin <- explain(svmLinModel, predictors, outcome, label = "SVM Linear")
+explainer_svmPol <- explain(svmPolModel, predictors, outcome, label = "SVM Polynomyal")
+explainer_svmRad <- explain(svmRadModel, predictors, outcome, label = "SVM Radial")
+explainer_rf <- explain(rfModel, predictors, outcome, label = "Random Forest")
+explainer_xgb <- explain(xgbModel, predictors, outcome, label = "XGBoost")
+
+eva_knn = model_performance(explainer_knn)
+eva_nb = model_performance(explainer_nb)
+eva_lr = model_performance(explainer_lr)
+eva_lda = model_performance(explainer_lda)
+eva_pda = model_performance(explainer_pda)
+eva_tree = model_performance(explainer_tree)
+eva_tb = model_performance(explainer_tb)
+eva_nn = model_performance(explainer_nn)
+eva_svmLin = model_performance(explainer_svmLin)
+eva_svmPol = model_performance(explainer_svmPol)
+eva_svmRad = model_performance(explainer_svmRad)
+eva_rf = model_performance(explainer_rf)
+eva_xgb = model_performance(explainer_xgb)
+
+models = c("K-Nearest Neighbors", 
+           "Naive Bayes",
+           "Logistic Regression", 
+           "Linear Discriminants", 
+           "Penalized Discriminants", 
+           "Decision Tree",
+           "Tree Bag",
+           "Neural Networks",
+           "SVM Linear",
+           "SVM Polynomyal",
+           "SVM Radial",
+           "Random Forest",
+           "XGBoost")
+
+accuracys = c(round(eva_knn$measures$accuracy*100,2),
+              round(eva_nb$measures$accuracy*100,2),
+              round(eva_lr$measures$accuracy*100,2),
+              round(eva_lda$measures$accuracy*100,2),
+              round(eva_pda$measures$accuracy*100,2),
+              round(eva_tree$measures$accuracy*100,2),
+              round(eva_tb$measures$accuracy*100,2),
+              round(eva_nn$measures$accuracy*100,2),
+              round(eva_svmLin$measures$accuracy*100,2),
+              round(eva_svmPol$measures$accuracy*100,2),
+              round(eva_svmRad$measures$accuracy*100,2),
+              round(eva_rf$measures$accuracy*100,2),
+              round(eva_xgb$measures$accuracy*100,2))
+
+models_acc = data.frame(model=models, accuracy=accuracys)
+
+ggplot(models_acc, aes(x=reorder(model, accuracy), y=accuracy, color=accuracy)) + 
+  geom_bar(stat="identity", color='skyblue',fill='steelblue', width = 0.7) +
+  geom_text(aes(label=accuracy), vjust=0.4, hjust=1.5, color="white", size=3.5) +
+  xlab("Model") + ylab("Accuracy") +
+  ggtitle("Rank of Model Performance by Accuracy (%)") +
+  theme_minimal() + 
+  coord_flip()
+
+plot(eva_knn, eva_nb, eva_lr, eva_lda, eva_pda, eva_tree, eva_tb, eva_nn, eva_svmLin, eva_svmPol, eva_svmRad, eva_rf, eva_xgb, geom = "boxplot", lossFunction = loss_accuracy()) 
 
 
 #TEST ZONE (NOT RUN) -----------------------------------------------------------------------------
+
+
+
+
+myWorkFlow <- function(form, training, testing, type, ctrl) {
+  require(caret, quietly=TRUE)
+  ## cary out some data pre-processing
+  #myTrain <- mySpecificPreProcessingSteps(train)
+  ## now obtain the model
+  model <- train(form, training, method = type, trControl = ctrl)
+  ## obtain the predictions
+  preds <- predict(model, testing)
+  ## cary out some predictions post-processing
+  #newPreds <- mySpecificPostProcessingSteps(form,train,test,preds)
+  #names(newPreds) <- rownames(test)
+  ## finally produce the list containing the output of the workflow
+  res <- list(trues=responseValues(form, testing), preds)
+}
+
+library(performanceEstimation)
+
+knnWF <- function(form, train, test) {
+  res <- list(trues=responseValues(form, testSet), preds=knnPredict)
+  return(res)
+}
+
+cctrl <- trainControl(method = "cv", number = 10, savePredictions = "final", classProbs = T, verboseIter = TRUE)
+
+#se=c(0,1),step=c(TRUE,FALSE),weightRT=c(0.4,0.5,0.6)
+
+#pre=c("centralImp","scale"),
+#post="onlyPos",
+
+wfLogisticRegreession = Workflow(wf='myWorkFlow', wfID="Logistic Regreession", type="multinom", ctrl=cctrl)
+
+res <- performanceEstimation(PredTask(cause_type ~ ., trainSet,"Logistic Regression"),
+                             wfLogisticRegreession,
+                             EstimationTask(metrics = "acc", method=CV()))
+
+res <- performanceEstimation(PredTask(cause_type ~ ., trainSet,"Linear Discriminants"),
+                             workflowVariants("myWorkFlow", type="lda" , ctrl = cctrl),
+                             EstimationTask(metrics = "acc",method=CV()))
+
+ussummary(res)
+plot(res)
+
+
+diag_rf = model_diagnostics(explainer_rf)
+diag_knn = model_diagnostics(explainer_knn)
+
+plot(diag_knn)
+plot(diag_rf, variable = "y", yvariable = "y_hat")
+plot(diag, variable = "y", yvariable = "abs_residuals")
+
+explainer_knn <- explain(
+  model = knnModel,
+  data = ffires[,-11],
+  y = ffires$cause_type,
+  label = "K-Nearest Neighbor"
+)
+
+eva_rf = model_performance(explainer_rf)
+eva_knn = model_performance(explainer_knn)
+
+eva_rf$measures$accuracy
+eva_knn$measures$accuracy
+
+
+plot(eva_knn, geom = "boxplot")
+plot(mp_ranger, mp_ranger2, geom = "roc")
+plot(mp_ranger, mp_ranger2, geom = "lift")
+plot(mp_ranger, mp_ranger2, geom = "gain")
+plot(mp_ranger, mp_ranger2, geom = "boxplot", lossFunction = loss_accuracy())
+plot(mp_ranger, mp_ranger2, geom = "histogram")
+plot(mp_ranger, mp_ranger2, geom = "ecdf")
+
+plot(eva_rf, eva_knn, geom = "roc") 
+plot(eva_rf, eva_knn, geom = "histogram") 
+plot(eva_rf, eva_knn, geom = "boxplot") 
+
+?plot
+
+
+
+
+# Use predict with type="prob" to get class probabilities
+knnPredict = predict(knnModel, testSet, type="prob")
+xgbPredict = predict(xgbModel, testSet, type="prob")
+
+library(pROC)
+
+knnRoc = multiclass.roc(testSet$cause_type, knnPredict, percent = T, plot = T)
+xgbRoc = multiclass.roc(testSet$cause_type, xgbPredict, percent = T, plot = T)
+
+
+
+library("patchwork")
+knnRoc$predictor + xgbRoc
+
+roc.test(knnRoc$auc,xgbRoc$auc)
+
+a <- auc(knnRoc)
+
+
+plot.roc(knnRoc$response)
+roc$rocs
+auc(roc)
+roc$rocs
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+plot(eva_rf, eva_knn, geom = "roc" )
+
+
+set.seed(1980)
+mp <- model_parts(explainer_rf, loss_function = loss_one_minus_auc, B = 1)
+mpKnn <- model_parts(explainer_knn, loss_function = loss_cross_entropy)
+plot(mp)
+plot(mpKnn)
+
+load("rfProfile.RData")
+
+ggplot(rfProfile, metric = "Accuracy")
+
+loss_accuracy(observed = testSet$cause_type, predicted = rfPredict)
+loss_one_minus_auc(testSet$cause_type,rfPredict)
+
+set.seed(1980)
+model_parts(explainer = explainer_rf, 
+            loss_function = loss_one_minus_auc,
+            B = 1)
 
 # Fit the model
 lrModel <- multinom(cause_type ~., data = trainSet)
