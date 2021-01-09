@@ -72,11 +72,8 @@ require(lubridate)
 require(ggplot2)
 require(devtools)
 require(caret)
-require(Boruta)
-require(nnet)
-require(pROC)
-require(rpart)
 require(rpart.plot)
+require(kableExtra)
 # turns off scientific notation; to turn it back on, use scipen= 0
 options(scipen= 999)
 ```
@@ -101,48 +98,10 @@ Data mining techniques can help in the prediction of the cause of the fire and, 
 
 # Forest Fire Dataset
 
-The ICFN - Nature and Forest Conservation Institute has the record of the list of forest fires occurred in Portugal for several years. For each fire, there is information such as the site, the alert date/hour, the extinction date/hour, the affected area and the cause type. A classifications for causes types are presented in table \@ref(tab:cause_type).
-
-Table 1: (\#tab:cause_type) Classifications of causes of forest fires.
-
-Cause       |Description                                           
-------------|---------------------------------------------------------------------------------------------
-Unknown     | absence of suficient objective evidence to determine the cause of the ignition of fire
-Natural     | lightning generated in thunderstorms
-Negligence  | the misguided use of fire in activities such as burning trash, mass burning of agricultural and forest fuels, fun and leisure activities; failure to properly extinguish cigarettes by smokers; the dispersal and transport of incandescent particles from chimneys; etc.
-Intentional | incendiarism and arson, mostly resulting from behaviors and attitudes reacting to theconstraints of agroforestry management systems and to conflicts related to land use
-Rekindling  | reburning of an area over which a fire has previously passed, but where fuel has been left that is later ignited by latent heat, sparks, or embers
+The Institute for Nature Conservation and Forests ([ICNF](http://www.icnf.pt/portal/florestas/dfci/estatisticas)) is the governmental body responsible for the nature and forest policies, including the management of protected areas and state managed national, municipal, and communal forests of mainland Portugal. The ICNF has been maintained a database with data of all forest fires that occurred in Portugal over several years. The dataset used in this study is a subset extracted from this database regarding the fires that occurred over 2015. It consist of **7511** records of fires and for each one, there is relevant information such as the GPS coordinates (latitude and longitude) where occur the fire, the date and time of fire alert, the date and time of the first intervention, and the date and time of fire extinction, besides the origin of the ignition, the affected area, and the cause type. The table \@ref(tab:variables) describes all variables contained in `Forest Fires` dataset:
 
 
-```{r data, echo= F, error= F}
-fires.train.path = file("data/fires2015_train.csv")
-fires.test.path = file("data/fires2015_test.csv")
-
-fires.raw = as_tibble(read.csv("data/fires2015_train.csv",
-                               stringsAsFactors = FALSE, 
-                               na.strings = c("-", "","NA"), 
-                               encoding = "UTF-8"))
-```
-
-
-The dataset used in this study was provided by ICFN, and it contains the data on reported forest fires during 2015 and its respective causes. The data are distributed in files:
-
-* **fires2015train.csv** --- the file contain the data of 7511 reported forest fires during 2015
-
-A summary of the structure of the dataset is provided below.
-```{r fires.raw-summary, echo = F}
-glimpse(fires.raw)
-head(fires.raw)
-df_status(fires.raw)
-tail(fires.raw)
-```
-
-## Dataset Variables
-
-Table \@ref(tab:variables) describes all variables contained in the `fires.raw` of the data set.
-Clearly, the type of some of variables is incorrect and inconvenient for analysis and that was taken care of in section \@ref(data-cleaning).
-
-Table: (\#tab:variables) List of variables present in the original file from the fires2015train.csv data set.
+Table (\#tab:variables) List of variables in `Forest Fires` dataset.
 
 Variable          |Type        |Description                   |
 ------------------|------------|------------------------------|------
@@ -162,165 +121,415 @@ firstInterv_date  |character   |date of intervention          |
 firstInterv_hour  |character   |hour of intervention          |
 alert_source      |logical     |alert source                  |
 village_area      |numeric     |village area affected         |
-alert_source      |logical     |alert source                  |
-village_area      |numeric     |village area affected         |
 vegetation_area   |numeric     |vegetation area affected      |
 farming_area      |numeric     |farming area affected         |
 village_veget_area|numeric     |total village+veget affected  |
 total_area        |numeric     |total area affected           |
-cause_type        |character   |cause of the fire             |
+cause_type        |character   |cause of the fire             | 
+
+A classification for causes types are presented in table \@ref(tab:causetype).
+
+Table: (\#tab:causetype) Classifications of causes of forest fires.
+
+Cause       |Description                                           
+------------|---------------------------------------------------------------------------------------------
+Unknown     | absence of suficient objective evidence to determine the cause of the ignition of fire
+Natural     | lightning generated in thunderstorms
+Negligence  | the misguided use of fire in activities such as burning trash, mass burning of agricultural and forest fuels, fun and leisure activities; failure to properly extinguish cigarettes by smokers; the dispersal and transport of incandescent particles from chimneys; etc.
+Intentional | incendiarism and arson, mostly resulting from behaviors and attitudes reacting to theconstraints of agroforestry management systems and to conflicts related to land use
+Rekindling  | reburning of an area over which a fire has previously passed, but where fuel has been left that is later ignited by latent heat, sparks, or embers
 
 
-# Exploratory data analysis and engineering
-
-## Data Cleaning and Transforms: 
-We started to verify the dataset to identify and correct the mistakes and errors in the data.
-First we tested if there were duplicated observations.
-```{r echo=FALSE}
-anyDuplicated(fires.raw)
-```
-The result was negative.
-
-The lat variable had to be corrected because we observed that incorrect values like a date were mixed in it.
-```{r echo=FALSE}
-idx.lat.wrong = which(str_detect(fires.raw$lat, '1900-01-01'))
-lat.wrong = fires.raw[idx.lat.wrong,]
-#head(select(lat.wrong$lat, lat.wrong$lon))
-```
-
-The number of observations with wrong value in lat variable were detected and the total number of them is showed below.
-```{r echo=FALSE}
-print(str_c("There are",length(idx.lat.wrong),"observations with wrong value '1900-01-01'", sep = " "))
+```{r load_data, include=FALSE}
+ffires.raw.path = file("data/fires2015_train.csv")
+ffires.raw = as_tibble(read.csv(ffires.raw.path,
+                               stringsAsFactors = FALSE, 
+                               na.strings = c("-", "","NA"), 
+                               encoding = "UTF-8"))
 ```
 
-On the wrong values, an imputation was made, based on another observation that has the same region, district, municipality and parish than these.
-```{r echo=FALSE}
+A glimpse of the structure of the `Forest Fires` data set is provided below:
+
+Table: (#tab:glimpse-data) A glimpse of the structure of the data set.
+
+```{r glimpse-data, echo=F, error=F}
+glimpse(ffires.raw)
+
+```
+
+A summary for each variable present in dataset is provided below. The metrics displayed are: quantity and percentage of zeros, quantity and quantity and percentage of NA's, data type and quantity of unique values.
+
+
+Table 4: (\#tab:summary-data) A summary of variables of the dataset.
+
+```{r summary-data, echo=F}
+df_status(ffires.raw)
+```
+
+
+A sample the first observations is provided below:
+
+```{r head_data, echo=F}
+head(ffires.raw)
+```
+
+# Data Preparation
+
+Data preparation consists of the process of cleaning and transforming raw data in a form that can be used by machine learning algorithms. Next sections, we exploit the `Forest Fires` dataset in order to perform the steps of cleaning a transforming, when need.
+
+## Data Cleaning {#data-cleaning}
+
+### Latitude and Longitude
+
+The `Forest Fires` dataset store the latitude and longitude of the place where occurred the fire into variables `lat` e `lon` respectively. These values are in format of *DegreesºMinutes'Seconds"* and for the reason contain special characters `º`, `'`, `:` and `"`. Besides, there are wrong values into variables as dates between the coordinates and values with scientific notation `E-12`, `E-11` and `E-02`. A sample of these inconsistencies is provided in the tables below:
+
+```{r lat_lon_wrong, echo=FALSE}
+sample1 = ffires.raw %>% filter(str_detect(lat, 'º')) %>% select(lat, lon)
+sample2 = ffires.raw %>% filter(str_detect(lat, '1900-01-01')) %>% select(lat, lon)
+sample3 = ffires.raw %>% filter(str_detect(lat, "E-12")) %>% select(lat, lon)
+
+sample1[1,]
+sample2[1,]
+sample3[1,]
+
+rm(sample1, sample1, sample2)
+```
+
+A cleaning and transformation steps were perfomed on `lat` and `lon` variables to remove the special caracters and scientific notation. For the values wrongs where there is a date among the coordinates, it was performed an data imputation based on another observations that has the same `region`, `district`, `municipality` and `parish`. After the cleaning steps, the values were transformated from GPS coordinates to decimals coordinates in order to be able retrieve historical data from nearest weather stations using the [RNOAA](http://spatialecology.weebly.com/r-code--data/34) package 
+
+```{r clean_lat_lon, echo=FALSE}
+idx.lat.wrong = which(str_detect(ffires.raw$lat, '1900-01-01'))
+lat.wrong = ffires.raw[idx.lat.wrong,]
 for (idx in idx.lat.wrong) {
-  df_temp = fires.raw[-idx.lat.wrong,] %>% 
-    filter(region == fires.raw[idx,]$region, 
-           district == fires.raw[idx,]$district,
-           municipality ==fires.raw[idx,]$municipality,
-           parish == fires.raw[idx,]$parish)
-  fires.raw$lat[idx] = df_temp$lat[1]
-  fires.raw$lon[idx] = df_temp$lon[1]
+  df_temp = ffires.raw[-idx.lat.wrong,] %>% 
+    filter(region == ffires.raw[idx,]$region, 
+           district == ffires.raw[idx,]$district,
+           municipality == ffires.raw[idx,]$municipality,
+           parish == ffires.raw[idx,]$parish)
+  ffires.raw$lat[idx] = df_temp$lat[1]
+  ffires.raw$lon[idx] = df_temp$lon[1]
 }
-rm(df_temp)
-```
-
-A cleaning was made on lat and lon variables to remove some characters and change to "". This process was necessary to convert their contents from GPS coordinate to decimals.
-```{r echo=FALSE}
 vec_clean <- c("''"="", "E-12"="", "E-11"="", "E-02"="", ","=".", "º"=" ", "'"=" ", ":"=" ")
-fires.raw$lat <- conv_unit(str_replace_all(str_trim(fires.raw$lat), vec_clean), "deg_min_sec", "dec_deg")
-```
-
-
-```{r echo=FALSE}
-fires.raw$lon <- conv_unit(str_replace_all(str_trim(fires.raw$lon, side = "both"), vec_clean), "deg_min_sec", "dec_deg")
+ffires.raw$lat <- conv_unit(str_replace_all(str_trim(ffires.raw$lat), vec_clean), "deg_min_sec", "dec_deg")
+ffires.raw$lon <- conv_unit(str_replace_all(str_trim(ffires.raw$lon), vec_clean), "deg_min_sec", "dec_deg")
 # Workaround
-fires.raw$lon[7511] <- conv_unit("8 34 21.5868000000013", "deg_min_sec", "dec_deg")
-```
-After the imputation, 8 NA´s values were assigned to observations in latitude and longitude variables
-
-For parish with missing values we insert latitude and longitude 
-```{r echo=FALSE}
-idx.latlon.na = which(is.na(fires.raw$lat) & is.na(fires.raw$lon))
-latlon.na = fires.raw[idx.latlon.na,]
-#head(select(latlon.na$parish, latlon.na$lat, latlon.na$lon))
-```
-Alentejo - Évora - Mora - Cabeção
-```{r echo=FALSE}
-fires.raw$lat[439] = 38.954167
-fires.raw$lon[439] = -8.072778
+ffires.raw$lon[7511] <- conv_unit("8 34 21.5868000000013", "deg_min_sec", "dec_deg")
+rm(df_temp,vec_clean,idx.lat.wrong,lat.wrong)
 ```
 
-Alentejo -	Évora - Montemor-o-Novo - Cortiçadas de Lavre
+The data imputation and transformation generated 8 NA's in `lat` and `lon` variables for parishes listed below:
+
+
 ```{r echo=FALSE}
-fires.raw$lat[1722] = 38.786577
-fires.raw$lon[1722] = -8.432094
+ffires.raw %>% select(region, district, municipality, parish, lat, lon) %>% filter(is.na(lat))
 ```
 
-Alentejo - Évora - Montemor-o-Novo - Ciborro
-```{r echo=FALSE}
-fires.raw$lat[2633] = 38.800833
-fires.raw$lon[2633] = -8.228056
+In order to fixing this, the latitude and longitude values for these parishes were imputed directly from the localization data retrieved from the internet.
+
+
+```{r lat_lon_imputation, echo=FALSE}
+#Alentejo - Évora - Mora - Cabeção
+ffires.raw$lat[439] = 38.954167
+ffires.raw$lon[439] = -8.072778
+#Alentejo -	Évora - Montemor-o-Novo - Cortiçadas de Lavre
+ffires.raw$lat[1722] = 38.786577
+ffires.raw$lon[1722] = -8.432094
+#Alentejo - Évora - Montemor-o-Novo - Ciborro
+ffires.raw$lat[2633] = 38.800833
+ffires.raw$lon[2633] = -8.228056
+#Alentejo -	Évora -	Mourão - Granja
+ffires.raw$lat[3007] = 38.3 
+ffires.raw$lon[3007] = -7.255
+#Alentejo -	Évora -	Évora	- Horta das Figueiras
+ffires.raw$lat[3443] = 38.545
+ffires.raw$lon[3443] = -7.905556
+#Alentejo -	Évora - Montemor-o-Novo - Cortiçadas de Lavre
+ffires.raw$lat[3586] = 38.786577
+ffires.raw$lon[3586] = -8.432094
+#Alentejo - Évora - Estremoz - São Lourenço de Mamporcão	
+ffires.raw$lat[5284] = 38.890833
+ffires.raw$lon[5284] = -7.545833
+#	Alentejo - Évora - Mora - Brotas
+ffires.raw$lat[7228] = 38.873056
+ffires.raw$lon[7228] = -8.15
 ```
 
-Alentejo -	Évora -	Mourão - Granja
-```{r echo=FALSE}
-fires.raw$lat[3007] = 38.3 
-fires.raw$lon[3007] = -7.255
+### District
+
+Mainland Portugalis is divided into 18 districts and the variable `district` from `Forest Fires` dataset refer the place where occurred the fires. As seen in table \@ref(tab:summary_data), this variable has 19 unique values, so there are some inconsistent data. The table below display the unique values for this variable:
+
+```{r echo=F}
+unique(ffires.raw$district)
 ```
 
-Alentejo -	Évora -	Évora	- Horta das Figueiras
-```{r echo=FALSE}
-fires.raw$lat[3443] = 38.545
-fires.raw$lon[3443] = -7.905556
+As seen in table above, there are two references for the same district: *Viana do Castelo* and *Viana Do Castelo*. So a step of cleaning was performed into this variable values.
+
+```{r eval=F, echo=F}
+idx.dist.VC = which(ffires.raw$district == "Viana Do Castelo")
+for (idx in idx.dist.VC) {
+  ffires.raw[idx,]$district = "Viana do Castelo" 
+}
 ```
 
-Alentejo -	Évora - Montemor-o-Novo - Cortiçadas de Lavre
-```{r echo=FALSE}
-fires.raw$lat[3586] = 38.786577
-fires.raw$lon[3586] = -8.432094
-```
+### First Intervention and Extinction
 
-Alentejo - Évora - Estremoz - São Lourenço de Mamporcão	
-```{r echo=FALSE}
-fires.raw$lat[5284] = 38.890833
-fires.raw$lon[5284] = -7.545833
-```
+The variables `firstInterv_date` and `firstInterv_hour` store the date and time that occured the the first intervention by autorities after the fire alert. As seem in table 4, these variables have a total of NA's values equals 214 and 215, respectively. In order to reduce these quantity,  a data imputation were performed based on values of `extinction_date` and `extinction_hour` assumption that if there are values for extinction date and time it because some intervention was realized. After data imputatio the quantity of NA's was reduced to 7 in both variables as can be seen below:
 
-Alentejo - Évora - Mora - Brotas
-```{r echo=FALSE}
-fires.raw$lat[7228] = 38.873056
-fires.raw$lon[7228] = -8.15
-```
-
-Data imputation: firstInterv_date and firstInterv_hour
-```{r echo=FALSE}
-fires.raw <- fires.raw %>% rowwise() %>% mutate(firstInterv_date = if_else( is.na(firstInterv_date) && !is.na(extinction_date), extinction_date , firstInterv_date),
+```{r firstInterv_imputation, echo=FALSE}
+ffires.raw <- ffires.raw %>% rowwise() %>% mutate(firstInterv_date = if_else( is.na(firstInterv_date) && !is.na(extinction_date), extinction_date , firstInterv_date),
                                                 firstInterv_hour = if_else( is.na(firstInterv_hour) && !is.na(extinction_hour), extinction_hour , firstInterv_hour))
 ```
 
+```{r summary_after_firstInterv_imputation, echo=FALSE}
+df_status(ffires.raw %>% select(firstInterv_date, firstInterv_hour, extinction_date, extinction_hour))
+```
+
+The remaining quantity of NA's values in `firstInterv_date`, `firstInterv_hour`, `extinction_date`, and `extinction_hour` represent 0.9% and 1.2% respectively of the total of observations. As these values are relatively low, these observations were removed from dataset.
+
+### Variable: Alert Source
+
+As can be seen in table below, the variable `alert_source` has 100% of values with NA's, so this variable were removed from dataset.
+
+```{r echo=F}
+df_status(ffires.raw$alert_source)
+```
+
+## Data Transformation
+
+In order to 
+
+
+
+
+
+
+
 Changing type of some variables to factor 
+```{r eval=FALSE, echo=FALSE}
+ffires.raw$region = as.factor(fires.raw$region)
+ffires.raw$district = as.factor(fires.raw$district)
+ffires.raw$municipality = as.factor(fires.raw$municipality)
+ffires.raw$parish = as.factor(fires.raw$parish)
+ffires.raw$origin = as.factor(fires.raw$origin)
+ffires.raw$cause_type = as.factor(fires.raw$cause_type)
+```
+
+Creating new features
+
+Variable alert 
+```{r eval=FALSE, echo=FALSE}
+ffires.raw <- ffires.raw %>% rowwise() %>% 
+  mutate(alert = ymd_hms(str_c(alert_date, alert_hour, sep=" ")),
+         extinction = ymd_hms(str_c(extinction_date, extinction_hour, sep=" ")),
+         firstInterv = ymd_hms(str_c(firstInterv_date, firstInterv_hour, sep=" ")),
+         latency_alert_interv = (firstInterv - alert)/60,
+         latency_interv_ext = (extinction - firstInterv)/60,
+         latency_alert_ext = (extinction - alert)/60)
+
+ffires.raw <- as_tibble(fires.raw)
+```
+
+Marking a check point
+```{r eval=FALSE, echo=FALSE}
+#save(fires.raw, file = "fires.raw.RData")
+#load("ffires.raw.RData")
+```
+
+----------------------------------XXXXXXXXXXXXXXXXXX----------------------
+
+It was necessary to do a cleaning on lat and lon variables and convert their contents from GPS coordinate to decimals.Before the transformation they were like below:
+
 ```{r echo=FALSE}
+head(ffires.raw$lat)
+```
+
+```{r eval=FALSE, echo=FALSE}
+head(ffires.raw$lon)
+```
+
+```{r eval=FALSE, echo=FALSE}
+vec_clean <- c("''"="", "E-12"="", "E-11"="", "E-02"="", ","=".", "º"=" ", "'"=" ", ":"=" ")
+ffires.raw$lat <- conv_unit(str_replace_all(str_trim(ffires.raw$lat), vec_clean), "deg_min_sec", "dec_deg")
+# Ocorre um warning ao executar essa linha
+ffires.raw$lon <- conv_unit(str_replace_all(str_trim(ffires.raw$lon, side = "both"), vec_clean), "deg_min_sec", "dec_deg")
+# Workaround
+ffires.raw$lon[7511] <- conv_unit("8 34 21.5868000000013", "deg_min_sec", "dec_deg")
+```
+
+After the transformation, the values were corrected.
+
+Here are the first lines of lat variable
+```{r eval=FALSE, echo=FALSE}
+head(ffires.raw$lat)
+```
+and here are the first lines of lon variable
+```{r eval=FALSE, echo=FALSE}
+head(ffires.raw$lon)
+```
+
+---------------???????????????????????????????---------------------
+Data imputation: firstInterv_date and firstInterv_hour
+```{r eval=FALSE, echo=FALSE}
+ffires.raw <- ffires.raw %>% rowwise() %>% mutate(firstInterv_date = if_else( is.na(firstInterv_date) && !is.na(extinction_date), extinction_date , firstInterv_date),firstInterv_hour = if_else( is.na(firstInterv_hour) && !is.na(extinction_hour), extinction_hour , firstInterv_hour))
+```
+
+Fix data type as factor on the variables below.
+```{r eval=FALSE, echo=FALSE}
 fires.raw$region = as.factor(fires.raw$region)
 fires.raw$district = as.factor(fires.raw$district)
 fires.raw$municipality = as.factor(fires.raw$municipality)
 fires.raw$parish = as.factor(fires.raw$parish)
 fires.raw$origin = as.factor(fires.raw$origin)
 fires.raw$cause_type = as.factor(fires.raw$cause_type)
+glimpse(fires.raw)
 ```
 
-We create new features using the alerts that can be used on the analisys.
+Creating new features
+Variable alert 
+```{r eval=FALSE, echo=FALSE}
+fires.raw <- fires.raw %>% rowwise() %>% 
+  mutate(alert = ymd_hms(str_c(alert_date, alert_hour, sep=" ")),
+         extinction = ymd_hms(str_c(extinction_date, extinction_hour, sep=" ")),
+         firstInterv = ymd_hms(str_c(firstInterv_date, firstInterv_hour, sep=" ")),
+         latency_alert_interv = (firstInterv - alert)/60,
+         latency_interv_ext = (extinction - firstInterv)/60,
+         latency_alert_ext = (extinction - alert)/60)
 
-```{r echo=FALSE}
-
-load("fires.raw.RData")
+fires.raw <- as_tibble(fires.raw)
 df_status(fires.raw)
 ```
 
-----------------------------------XXXXXXXXXXXXXXXXXX----------------------
-
+-------------save(fires.raw, file = "fires.raw.RData")-----
+```{r echo=FALSE}
+#load("fires.raw.RData")
+```
 
 ## Statistical exploration of the variables
 
+Table \@ref(tab:base-variables) describes all variables contained in the data set that was analised in sections \@ref(data-cleaning) and \@ref(feature-engineering).
+
+Table: (\#tab:base-variables) List of all variables to be analysed.
+
+Variable               |Type        |Description                   |
+-----------------------|------------|------------------------------|------
+id                     |integer     |id number                     |
+region                 |factor      |region name                   |
+district               |factor      |district name                 |
+municipality           |factor      |municipality name             |
+parish                 |factor      |parish name                   |
+lat                    |character   |latitude value                |
+lon                    |character   |longitude value               |
+origin                 |factor      |how the fire started          |
+alert_date             |character   |date when fire started        |
+alert_hour             |character   |alert hour                    |
+extinction_date        |character   |date of the end of fire       |
+extinction hour        |character   |hour of the end of fire       |
+firstInterv_date       |character   |date of intervention          |
+firstInterv_hour       |character   |hour of intervention          |
+alert_source           |logical     |alert source                  |
+village_area           |numeric     |village area affected         |
+alert_source           |numeric     |alert source                  |
+village_area           |numeric     |village area affected         |
+vegetation_area        |numeric     |vegetation area affected      |
+farming_area           |numeric     |farming area affected         |
+village_veget_area     |numeric     |total village+veget affected  |
+total_area             |numeric     |total area affected           |
+cause_type             |factor      |cause of the fire             |
+
+Understanding the structure of the data, the distribution of the variables, and the relationships between them is fundamental to build a solid model.
+
+### id
+The variable id only represents the line number of the observations. Initially, it isn´t an important variable and can be retired possibly of the final data set.
+
+### region, district, municipality and parish
+These four variables represents the areas of the occurrences and we can observe by summary that the variable region has a lot of NA´s (501) that corresponds to 6,67% of the total of lines. The other 3 variables don´t have zeros nor NA´s, but parish and municipality have many distinct observations. The distribution of the occurrences by region and district can be observer in grafics \@ref(fig:region-ratings) and \@ref(fig:district-ratings).
+
+### lat and lon
+The variables lat and lon represents points of the occurrence, don´t have zeros nor NA´s but there is a lot of different observations and these variables can be represented by the district that include many points in it. Maybe, district can substitute these two variables but it must be confirmed by the analysis to be done.
+
+### origin
+Origin informs the reason why the fire started and apparently appears to be an important observation for evaluation.It can be observed in figure \@ref(fig:origin-ratings).
+
+### alert_date, alert_hour
+These two variables inform the date and hour of the advice of the occurrence. They don´t have NA´s.
+
+### extinction_date, extinction_hour
+These are the information about the end of the fire and they have to be analysed if they are important because the fire just finished and we don´t know yet if they help to predict the occurrence.
+
+### firstInterv_date, firstInterv_hour
+They represent the moment of starting of the fight against the fire.
+
+### alert_source
+This variable, how we can see, doesn´t have any information that can be used in the model because all the observations are NA´s.
+
+### village_area, vegetation_area, farming_area, village_veget_area, total_area
 
 
-## Feature Engineering
+### cause_type
+This is the variable to be predicted by the model that will be chosen.It shows the four causes of the occurrences: intentional, natural, negligent and rekindling. They can be observed in the graphic \@ref(fig:causes-ratings).
+
+```{r summary-variables, echo = FALSE}
+
+```
+
+## Feature Engineering {#feature-engineering}
 Deriving new variables from available data and merging datasets WEATHER DATA AND FOREST FIRES getting new variables that can help on the predictions.
-We insert some new variables like TAVG, TMIN, TMAX and PRCP and did an imputation of value in tavg variable based on tmax and tmin,
-in tavg variable based on tavg15d (15 days before each occurrence), in tavg15d variable if NaN, in tmax variable based on tavg and tmin, in tmin variable based on tavg and tmax. We eliminated the maximum of observations with zeros and the dataset stayed like below:
-
-```{r echo=FALSE}
+```{r  eval=FALSE, include=FALSE}
 load("data/station_data.Rdata")
 
-#INSERIR MERGE DOS DATASETS ------------ xxxxxxxx --------------
+
+```
+
+We did an imputation of value in tavg variable based on tmax and tmin,
+in tavg variable based on tavg15d, in tavg15d variable if NaN,
+in tmax variable based on tavg and tmin, in tmin variable based on tavg and tmax
+```{r eval=FALSE, include=FALSE}
+ffires = ffires %>% rowwise() %>%  mutate(tavg = if_else(tavg == 0 & tmax != 0 & tmin != 0, (tmax+tmin)/2, tavg))
+ffires = ffires %>% rowwise() %>%  mutate(tavg = if_else(tavg == 0 & tavg15d != 0, tavg15d, tavg))
+ffires = ffires %>% rowwise() %>%  mutate(tavg15d = if_else(is.nan(tavg15d), 0, tavg15d))
+ffires = ffires %>% rowwise() %>%  mutate(tmax = if_else(tmax == 0 & tavg != 0 & tmin != 0, (2*tavg)-tmin, tmax))
+ffires = ffires %>% rowwise() %>%  mutate(tmin = if_else(tmin == 0 & tavg != 0 & tmax != 0, (2*tavg)-tmax, tmin))
+ffires = as_tibble(ffires)
+
+#save(ffires, file = "ffires.RData")
 
 load("ffires.RData")
 
 df_status(ffires)
-
 ```
+
+## Feature Selection
+Identifying those input variables that are most relevant to the task.
+First, we rename the dataset and extracted some variables to minimize it.
+The variables "parish" and "municipality" have many diferent observations,
+"id" can be retired because it is only the number of the lines of dataset and we don´t need this column, "region" has 501 NA´s and we don´t have how to substitute them, "alert_source" only has NA´s and it can be removed.
+```{r eval=FALSE, echo = FALSE}
+ffires.rf = ffires
+ffires.rf = ffires.rf %>% select(-id, -region, -municipality, -parish, -alert_source, -alert_date, -alert_hour, -firstInterv_date, -firstInterv_hour, -extinction_date, -extinction_hour)
+ffires.rf = ffires.rf %>% filter(!is.na(extinction))
+ffires.rf = ffires.rf %>% filter(!is.na(firstInterv))
+```
+
+changing to numeric
+```{r eval=FALSE, echo = FALSE}
+ffires.rf$lat = as.numeric(ffires.rf$lat)
+ffires.rf$lon = as.numeric(ffires.rf$lon)
+ffires.rf$latency_alert_ext = as.numeric(ffires.rf$latency_alert_ext)
+ffires.rf$latency_alert_interv = as.numeric(ffires.rf$latency_alert_interv)
+ffires.rf$latency_interv_ext = as.numeric(ffires.rf$latency_interv_ext)
+```
+
+##Creating train and test datasets
+```{r eval=FALSE, echo = FALSE}
+df_status(ffires.rf)
+set.seed(123456)
+idx.trainset = createDataPartition(ffires.rf$cause_type, p = 0.7, list = FALSE)
+trainSet = ffires.rf[ idx.trainset,] 
+testSet <- ffires.rf[-idx.trainset,]
+```
+
+## Dimensionality Reduction
+Creating compact projections of the data.
 
 
 ## Data exploration
@@ -336,7 +545,7 @@ Based on the dataset we ploted some graphics that helped us to get some conclusi
 Figure \@ref(fig:month-ratings) depicts the bar graphic of the distribution of forests fires during 2015. The x-axis represents the months along the year 0f 2015 and the y-axis represents the total of fires that occurred by month.
 
 ```{r month-ratings, echo = FALSE, fig.align= "center", fig.cap= "\\label{month-ratings}Barplot of the distribution of forests fires during 2015."}
-ggplot(fires.raw, aes(x = month(alert_date, label = T))) +
+ggplot(ffires.raw, aes(x = month(alert_date, label = T))) +
   geom_bar(fill = "red") +
   ggtitle("Distribution of forests fires across 2015") +
   labs(x="Months", y="Total")
@@ -347,8 +556,9 @@ This graphic showed us that july and august are the months with the largest ocur
 In another graphic, figure \@ref(fig:region-ratings) we plotted the bar graphic of the distribution of forests fires by region. The x-axis represents the regions and the y-axis represents the total of fires that occurred by region.
 
 ```{r region-ratings, echo = FALSE, fig.align= "center", fig.cap= "\\label{region-ratings}Barplot of the distribution of forests fires by regions."}
-ggplot(fires.raw, aes(x = region)) +  theme(axis.text.x = element_text(angle = 90)) + geom_bar() + ggtitle("Distribution of forests fires by region") +
-  labs(x="Region", y="Total")
+ggplot(ffires.raw, aes(x = region)) +  geom_bar() + ggtitle("Distribution of forests fires by region") +
+  labs(x="Region", y="Total") + 
+  coord_flip()
 ```
 
 Observing this grafic we saw that Entre Douro e Minho was the region with more forests fires and other regions like Centro, Lisboa and Norte were with minimum occurrences.
@@ -357,8 +567,9 @@ Observing this grafic we saw that Entre Douro e Minho was the region with more f
 Another important graphic is the figure \@ref(fig:district-ratings) that corresponds to the distribution of forests fires by district. The x-axis represents the districts and the y-axis represents the total of fires that occurred by region.
 
 ```{r district-ratings, echo = FALSE, fig.align= "center", fig.cap= "\\label{district-ratings}Barplot of the distribution of forests fires by districts."}
-ggplot(fires.raw, aes(x = district)) +  theme(axis.text.x = element_text(angle = 90))+geom_bar() + ggtitle("Distribution of forests fires by district") +
-  labs(x="District", y="Total")
+ggplot(ffires.raw, aes(x = district)) +  geom_bar() + ggtitle("Distribution of forests fires by district") +
+  labs(x="District", y="Total") + 
+  coord_flip()
 ```
 
 This graphic indicates that Porto and Viana do Castelo were the districts with more forests fires.
@@ -367,7 +578,7 @@ This graphic indicates that Porto and Viana do Castelo were the districts with m
 A bar plot of forests fires related with the causes of them, is being reported on figure \@ref(fig:causes-ratings). On the x-axis are listed the diferent causes and on y-axis represents the total of fires that occurred.
 
 ```{r causes-ratings,echo = FALSE, fig.align= "center", fig.cap= "\\label{causes-ratings}Barplot of the distribution of forests fires by causes."}
-ggplot(fires.raw, aes(x = cause_type)) + geom_bar(color = "black", fill = "light blue") + ggtitle("Distribution of causes of fires")+
+ggplot(ffires.raw, aes(x = cause_type)) + geom_bar(color = "black", fill = "light blue") + ggtitle("Distribution of causes of fires")+
   labs(x="Causes of Fires", y="Total")
 ```
 
@@ -376,7 +587,7 @@ A thing that calls our atention is the difference between the number of fires th
 We plotted too a bar plot of forests fires during 2015 by origin, figure \@ref(fig:origin-ratings).On the x-axis are listed the diferent origins and on y-axis represents the total of fires that occurred.
 
 ```{r origin-ratings, echo = FALSE, fig.align= "center", fig.cap= "\\label{origin-ratings}Barplot of the distribution of forests fires by origins."}
-ggplot(fires.raw, aes(x = origin)) + geom_bar(fill = "blue") + ggtitle("Distribution of forests fires by origin across 2015")+
+ggplot(ffires.raw, aes(x = origin)) + geom_bar(fill = "blue") + ggtitle("Distribution of forests fires by origin across 2015")+
   labs(x="Origin", y="Total")
 ```
 
@@ -386,22 +597,38 @@ The firepit was the origin of the most forests fires comparing it with the other
 The relationship between district, month and causes is represented on figure \@ref(fig:dismoncau-ratings). The x-axis includes the diferent districts, y-axis represents the months of ocurrences and the variable cause is showed by colours listed on the labels.
 
 ```{r dismoncau-ratings, echo = FALSE, fig.align= "center", fig.cap= "\\label{dismoncau-ratings}Distribution of forests fires relating district, month and causes."}
-ggplot(fires.raw, aes(x = district, y = month(alert_date, label = T))) +  theme(axis.text.x = element_text(angle = 90)) + geom_point(aes(color = cause_type)) + ggtitle("Relationship between district, month and cause_type")+
-  labs(x="District", y="Months")
+ggplot(ffires.raw, aes(x = district, y = month(alert_date, label = T))) + geom_point(aes(color = cause_type)) + ggtitle("Relationship between district, month and cause_type")+
+  labs(x="District", y="Months") + 
+  coord_flip()
 ```
 
 The relationship between region, month and causes is represented on figure \@ref(fig:regmoncau-ratings). The x-axis includes the diferent regions, y-axis represents the months of ocurrences and the variable cause is showed by colours listed on the labels.
 
 ```{r regmoncau-ratings,echo = FALSE, fig.align= "center", fig.cap= "\\label{regmoncau-ratings}Distribution of forests fires relating region, month and causes."}
-ggplot(fires.raw, aes(x = region, y = month(alert_date, label = T))) +  theme(axis.text.x = element_text(angle = 90)) + geom_point(aes(color = cause_type)) + ggtitle("Relationship between region and month") + labs(x="Region", y="Months")
+ggplot(ffires.raw, aes(x = region, y = month(alert_date, label = T)))  + geom_point(aes(color = cause_type)) + ggtitle("Relationship between region and month") + labs(x="Region", y="Months")+ 
+  coord_flip()
 ```
 
-## Feature Selection
+# Prediction Models
 
-# Models
+In this section was created 
 
-## Evaluation of the models used
 
-# Conclusions and Prospects
+## Distance-based Approach
 
-# References
+### K-Nearest Neighbor
+
+## Probabilistic Approach
+
+## Mathematical Formulas
+
+## Logical Approaches
+
+## Optimization Approaches
+
+## Ensemble Approaches
+
+
+# Conclusions, Shortcomings and Future Work
+
+# Appendix
