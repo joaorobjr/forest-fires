@@ -572,7 +572,6 @@ ffires.full %>%
 
 The firepit was the origin of the most forests fires comparing it with the other origins.
 
-
 ### Cause type
 This is the variable to be predicted by the model that will be chosen.It shows the four causes of the occurrences: intentional, natural, negligent and rekindling. They can be observed in the graphic \@ref(fig:causes-ratings) below.
 On the x-axis are listed the diferent causes and on y-axis represents the total of fires that occurred.
@@ -586,16 +585,28 @@ ffires.full %>%
 
 A thing that calls our attention is the difference between the number of fires that were caused by negligence and by natural causes. The number of forest fires caused intentionally were almost the half of the negligent causes  what is an alarmant number.
 
-### TAVG, TAVG15d, TMax and TMin
+### TAVG
+This variable is the average temperature of each day of the occurrences. It was included from the station datas and your variation is described in the graphic \@ref(fig:tavg-ratings). 
 
-```{r tavg-ratings,echo = FALSE, fig.align= "center", fig.cap= "\\label{causes-ratings}GeomPoint of Average Temperature by month"}
+```{r tavg-ratings,echo = FALSE, fig.align= "center", fig.cap= "\\label{tavg-ratings}Histogram of Average Temperature by occurrences"}
 ggplot(ffires.full) + 
-  geom_boxplot(mapping = aes(x = tavg, y = month(alert_date, label = T)), size = 1.0, colour = "red") +
-  labs(x="TAVG", y="Months") + 
-  coord_flip()
+  geom_histogram(aes(x = tavg), color = "black", fill = "orange")+
+  labs(x="Tavg", y="Total")
 ```
 
+The graphic \@ref(fig:tavg-ratings) shows us that the large number of occurrences happened when the average temperature was between 24º e 26º. 
+
 ### PRCP
+
+This variable is the maximum precipitation volume of rain of each day of the occurrences. It was included from the station datas and your variation is described in the graphic \@ref(fig:prcp-ratings).
+
+```{r prcp-ratings,echo = FALSE, fig.align= "center", fig.cap= "\\label{tavg-ratings}Histogram of PRCP by occurrences"}
+ggplot(ffires.full) + 
+  geom_histogram(aes(x = prcp), color = "black", fill = "green")+
+  labs(x="Prcp", y="Total")
+```
+
+The graphic \@ref(fig:prcp-ratings) shows us that the large number of occurrences happened when the prcp was near to zero.
 
 ## Dimensionality Reduction
 
@@ -682,6 +693,8 @@ Predictive modeling is a technique that uses mathematical and computational meth
 
 ## Distance-based Approach
 
+This study proposes a distance‐based method: the characteristic objects method. In this approach, the preferences of each alternative are obtained on the basis of the distance from the nearest characteristic objects and their values.
+
 ### K-Nearest Neighbor
 
 Distance-based algorithms are machine learning algorithms that classify queries by computing distances between these queries and a number of internally stored exemplars. Exemplars that are closest to the query have the largest influence on the classification assigned to the query. The distance-based algorithm used in this study was the k-nearest neighbor algorithm (kNN).
@@ -715,12 +728,22 @@ The linear discriminant analysis can be easily computed using the function lda()
 
 ### Penalized Discriminants Analisys
 
+Penalized logistic regression imposes a penalty to the logistic model for having too many variables. This results in shrinking the coefficients of the less contributive variables toward zero. This is also known as regularization.
+
+The most commonly used penalized regression include:
+
+ridge regression: variables with minor contribution have their coefficients close to zero. However, all the variables are incorporated in the model. This is useful when all variables need to be incorporated in the model according to domain knowledge.
+lasso regression: the coefficients of some less contributive variables are forced to be exactly zero. Only the most significant variables are kept in the final model.
+elastic net regression: the combination of ridge and lasso regression. It shrinks some coefficients toward zero (like ridge regression) and set some coefficients to exactly zero (like lasso regression).
+
 ## Logical Approaches
 
 ### Decision Trees
 The Decision Tree classification method works as a tree-shaped flowchart, where each node indicates a test done on a value. The connections between the nodes represent the possible values of the upper node test, and the leaves indicate the class to which the record belongs. After the decision tree is assembled, to classify a new record, just follow the flow in the tree starting at the root node until reaching a leaf. Due to the structure they form, decision trees can be converted into Classification Rules.
 
 ### Tree Bag
+
+Bagging (Bootstrap Aggregation) is used when our goal is to reduce the variance of a decision tree. Here idea is to create several subsets of data from training sample chosen randomly with replacement. Now, each collection of subset data is used to train their decision trees.
 
 ## Optimization Approaches
 
@@ -733,10 +756,20 @@ A neural network divides the input into layers of abstraction. He can be trained
 It is used for both classification and prediction tasks. It consists of separating classes that can be separated by a straight line, called linearly separated classes. The model tries to trace the separation based on the best distance between the closest points. There are variations of SVM, such as the Kernell trick, which allows applying SVM to a set of nonlinearly separable data. Support vector machines for binary or multiclass classification.
 
 ### Linear {-}
+
+It is an extremely fast machine learning algorithm for solving multiclass classification problems from ultra large data sets that implements a cutting plane algorithm for designing a linear support vector machine.
+
 ### Radial {-}
+
+Radial kernel support vector machine is a good approch when the data is not linearly separable.The idea behind generating non linear decision boundaries is that we need to do some non linear transformations on the features which transforms them to a higher dimention space.We do this non linear transformation using the Kernel trick.
+
 ### Polinomial {-}
 
+The polynomial kernel is a kernel function commonly used with support vector machines (SVMs) and other kernelized models, that represents the similarity of training samples in a feature space over polynomials of the original variables, allowing learning of non-linear models. Intuitively, the polynomial kernel looks not only at the given features of input samples to determine their similarity, but also combinations of these. In the context of regression analysis, such combinations are known as interaction features.
+
 ## Ensemble Approaches
+
+The ensemble methods use multiple learning algorithms to obtain better predictive performance than could be obtained from any of the constituent learning algorithms alone.
 
 ### Random Forests
 Random forest is a supervised learning algorithm which is used mainly used for classification problems.  This algorithm creates decision trees on data samples and then gets the prediction from each of them and finally selects the best solution by means of voting. It gets a random sample with replacement from the training set, select some features at random and reduce dimensionality of the set, accordingly and train a tree model without pruning. It predicts the class obtained by majority vote averaging the output of each tree.
@@ -751,3 +784,5 @@ https://www.mathworks.com/?s_tid=gn_logo
 
 (Citeable URL: https://ir.library.oregonstate.edu/concern/graduate_thesis_or_dissertations/zw12z7835)
 
+PDA Reference
+http://www.sthda.com/english/articles/36-classification-methods-essentials/149-penalized-logistic-regression-essentials-in-r-ridge-lasso-and-elastic-net/
