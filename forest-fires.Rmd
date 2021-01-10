@@ -1005,9 +1005,9 @@ auc(rfMultiRoc)
 ### eXtreme Gradiente Boost
 
 ```{r xgb_model, eval=FALSE, include=FALSE}
+xgbModel <- train(cause_type ~ ., data = trainSet, method = "xgbTree", trControl = ctrl)
 #save(xgbModel, file = "models/xgbModel.RData")
 ```
-
 
 Escrever os resultados
 
@@ -1027,7 +1027,7 @@ Performance:
 ```{r xgb_performance, echo=F}
 # Make predictions
 xgbPredict = predict(xgbModel, testSet, type = "prob")
-par(mfrow=c(4,3))
+par(mfrow=c(2,3))
 xgbMultiRoc = multiclass.roc(testSet$cause_type, xgbPredict, percent = T, plot = T, print.auc = T)
 auc(xgbMultiRoc)
 ```
