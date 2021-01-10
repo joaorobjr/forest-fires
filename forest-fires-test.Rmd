@@ -286,125 +286,298 @@ df_status(ffires.raw %>% select(firstInterv_date, firstInterv_hour, extinction_d
 
 The remaining quantity of NA's values in `firstInterv_date`, `firstInterv_hour`, `extinction_date`, and `extinction_hour` represent 0.9% and 1.2% respectively of the total of observations. As these values are relatively low, these observations were removed from dataset.
 
-### Variable: Alert Source
+```{r echo=F}
+ffires.raw = ffires.raw %>% filter(!is.na(firstInterv_date))
+ffires.raw = ffires.raw %>% filter(!is.na(firstInterv_hour))
+ffires.raw = ffires.raw %>% filter(!is.na(extinction_date))
+ffires.raw = ffires.raw %>% filter(!is.na(extinction_hour))
+```
+
+### Alert Source {-}
 
 As can be seen in table below, the variable `alert_source` has 100% of values with NA's, so this variable were removed from dataset.
 
 ```{r echo=F}
 df_status(ffires.raw$alert_source)
+ffires.raw = ffires.raw %>% select(-alert_source)
 ```
 
 ## Data Transformation
 
-In order to 
+In the `Forest Fires` dataset, the variables `region`, `district`, `municipality`, `parish`, `origin`, `cause_type` are with the data type as `<character>` when the appropriataded should be a `<factor>`. Thus, a step to transform these variables into the most appropriated data type was performed.
 
-
-
-
-
-
-
-Changing type of some variables to factor 
-```{r eval=FALSE, echo=FALSE}
-ffires.raw$region = as.factor(fires.raw$region)
-ffires.raw$district = as.factor(fires.raw$district)
-ffires.raw$municipality = as.factor(fires.raw$municipality)
-ffires.raw$parish = as.factor(fires.raw$parish)
-ffires.raw$origin = as.factor(fires.raw$origin)
-ffires.raw$cause_type = as.factor(fires.raw$cause_type)
+```{r transform_factors, echo=FALSE}
+ffires.raw$region = as.factor(ffires.raw$region)
+ffires.raw$district = as.factor(ffires.raw$district)
+ffires.raw$municipality = as.factor(ffires.raw$municipality)
+ffires.raw$parish = as.factor(ffires.raw$parish)
+ffires.raw$origin = as.factor(ffires.raw$origin)
+ffires.raw$cause_type = as.factor(ffires.raw$cause_type)
 ```
 
-Creating new features
+Besides the variables aforementioned, others also were transformed. The variables `alert_date`, `alert_hour`, `firstInterv_date`, `firstInterv_hour`, `extinction_date`, and `extinction_hour` contains date and time data, and thus, these variables were appropriated merged and transformed in POSIXct object in order to able to handle it as a date. The variables `alert`, `firtsInterv` and `extinction` were created based on corresponding variables, and the ones were removed from the dataset. 
 
-Variable alert 
-```{r eval=FALSE, echo=FALSE}
-ffires.raw <- ffires.raw %>% rowwise() %>% 
+```{r transform_date_time, eval=FALSE, include=FALSE}
+# ::: Not run because let a long time to finish
+ffires.raw = ffires.raw %>% rowwise() %>% 
   mutate(alert = ymd_hms(str_c(alert_date, alert_hour, sep=" ")),
          extinction = ymd_hms(str_c(extinction_date, extinction_hour, sep=" ")),
-         firstInterv = ymd_hms(str_c(firstInterv_date, firstInterv_hour, sep=" ")),
-         latency_alert_interv = (firstInterv - alert)/60,
-         latency_interv_ext = (extinction - firstInterv)/60,
-         latency_alert_ext = (extinction - alert)/60)
+         firstInterv = ymd_hms(str_c(firstInterv_date, firstInterv_hour, sep=" ")))
 
-ffires.raw <- as_tibble(fires.raw)
+ffires.raw = ffires.raw %>% select(-alert_date, -alert_hour, -extinction_date, -extinction_hour, -firstInterv_date, -firstInterv_hour)
+         
+ffires.raw=as_tibble(ffires.raw)
+save(ffires.transformed, file = "data/ffires.transformed.RData")
 ```
 
-Marking a check point
-```{r eval=FALSE, echo=FALSE}
-#save(fires.raw, file = "fires.raw.RData")
-#load("ffires.raw.RData")
+```{r load_ffires_transformed, echo=F}
+load("data/ffires.transformed.RData")
+ffires.raw = ffires.transformed
+rm(ffires.transformed)
 ```
 
-----------------------------------XXXXXXXXXXXXXXXXXX----------------------
+## Feature Engineering
 
-It was necessary to do a cleaning on lat and lon variables and convert their contents from GPS coordinate to decimals.Before the transformation they were like below:
+### Weather Data {-}
 
-```{r echo=FALSE}
-head(ffires.raw$lat)
+As additional information, let's use weather data in order to build features that can help the models obtain better accuracy. The weather data can be obtained from the National Oceanic and Atmospheric Administration (NOAA) Climate Data Sources using [RNOAA](http://spatialecology.weebly.com/r-code--data/34) package whicu provides free access to National Climatic Data Center's (NCDC) archive of global historical weather and climate data in addition to station history information. These data include quality controlled daily, monthly, seasonal, and yearly measurements of temperature, precipitation, wind, and degree days as well as radar data and 30-year Climate Normals. 
+
+For the propose this analysis, it was created 5 new features: `tavg`, `tavg15d`, `tmax`, `tmin`, and `prcp` based on the following weather measurements:
+
+
+Measurement  | Description
+-------------|-------------------------------------------------------------
+tavg         | the average temperature of day (degrees C)
+tavg15d      | the average temperature of the last 15 days (degrees C)
+tmax         | the maximum temperature of day (degrees C)
+tmin         | the minimum temperature od day (degrees C)
+prcp         | the precipitation (mm)
+
+
+In order to retrieve the weather data it was considered the alert date of fire. The sample of the first rows of created features it provided in table below:
+
+```{r get_weather_data, eval=FALSE, include=FALSE}
+load("data/station_data.Rdata")
+
+get_nearby_stations = function (df, measure){
+  nearby_stations = meteo_nearby_stations(lat_lon_df = df,
+                                          station_data = station_data, 
+                                          radius = 1000, 
+                                          var = measure,
+                                          year_min = 2014, year_max = 2015,
+                                          limit = 5)
+  return(nearby_stations)
+}
+
+ffires.raw = ffires.raw %>% mutate(tavg = 0, tavg15d = 0, tmax = 0, tmin = 0, prcp = 0)
+
+fires = distinct(ffires.raw, parish, lat, lon, alert)
+
+for (i in 1:dim(fires)[1]) {
+  fire = fires[i,]
+  idx = which(ffires.raw$parish == fire$parish & ffires.raw$lat == fire$lat & ffires.raw$lon == fire$lon & ffires.raw$alert == fire$alert)
+  df = data.frame(id=fire$parish, latitude=fire$lat, longitude=fire$lon, stringsAsFactors = F)
+  stations = get_nearby_stations(df, c("TAVG", "TMAX", "TMIN", "PRCP"))
+  
+  dt_alert = as.character(as.Date(fire$alert))
+  
+  # Set TAVG
+  for(j in 1:dim(stations[[1]])[1] ){
+    wd = ghcnd_search(stations[[1]]$id[j], var = "TAVG", date_min = dt_alert, date_max = dt_alert)
+    if(!is.null(wd$tavg) && nrow(wd$tavg)>0 && !is.na(wd$tavg$tavg) && wd$tavg$tavg > 0){
+      tavg = wd$tavg$tavg
+      ffires.raw[idx,]$tavg = tavg/10
+      break()
+    }
+  }
+  
+  dt_ini = as.character(as.Date(fire$alert) - ddays(15))
+ 
+  # Set TAVG15D
+  for(j in 1:dim(stations[[1]])[1] ){
+    wd = ghcnd_search(stations[[1]]$id[j], var = "TAVG", date_min = dt_ini, date_max = dt_alert)
+    if(!is.null(wd$tavg) && nrow(wd$tavg)>0){
+      tavg15d = mean(wd$tavg$tavg, na.rm = TRUE)
+      ffires.raw[idx,]$tavg15d = tavg15d/10
+      break()
+    }
+  }
+  
+  # Set TMAX
+  for(j in 1:dim(stations[[1]])[1] ){
+    wd = ghcnd_search(stations[[1]]$id[j], var = "TMAX", date_min = dt_alert, date_max = dt_alert)
+    if(!is.null(wd$tmax) && nrow(wd$tmax)>0 && !is.na(wd$tmax$tmax) && wd$tmax$tmax > 0){
+      tmax = wd$tmax$tmax
+      ffires.raw[idx,]$tmax = tmax/10
+      break()
+    }
+  }
+  
+  # Set TMIN
+  for(j in 1:dim(stations[[1]])[1] ){
+    wd = ghcnd_search(stations[[1]]$id[j], var = "TMIN", date_min = dt_alert, date_max = dt_alert)
+    if(!is.null(wd$tmin) && nrow(wd$tmin)>0 && !is.na(wd$tmin$tmin) && wd$tmin$tmin > 0){
+      tmin = wd$tmin$tmin
+      ffires.raw[idx,]$tmin = tmin/10
+      break()
+    }
+  }
+  
+  # Set PRCP
+  for(j in 1:dim(stations[[1]])[1] ){
+    wd = ghcnd_search(stations[[1]]$id[j], var = "PRCP", date_min = dt_alert, date_max = dt_alert)
+    if(!is.null(wd$prcp) && nrow(wd$prcp)>0 && !is.na(wd$prcp$prcp) && wd$prcp$prcp > 0){
+      prcp = wd$prcp$prcp
+      ffires.raw[idx,]$prcp = prcp/10
+      break()
+    }
+  }
+}
+rm(i, j, wd, fire, fires, idx, stations, df, dt_alert, dt_ini)
+
+#Imputation of value in tavg variable based on tmax and tmin
+ffires = ffires %>% rowwise() %>%  mutate(tavg = if_else(tavg == 0 & tmax != 0 & tmin != 0, (tmax+tmin)/2, tavg))
+
+#Imputation of value in tavg variable based on tavg15d
+ffires = ffires %>% rowwise() %>%  mutate(tavg = if_else(tavg == 0 & tavg15d != 0, tavg15d, tavg))
+
+#Imputation of value in tavg15d variable if NaN
+ffires = ffires %>% rowwise() %>%  mutate(tavg15d = if_else(is.nan(tavg15d), 0, tavg15d))
+
+#Imputation of value in tmax variable based on tavg and tmin
+ffires = ffires %>% rowwise() %>%  mutate(tmax = if_else(tmax == 0 & tavg != 0 & tmin != 0, (2*tavg)-tmin, tmax))
+
+#Imputation of value in tmin variable based on tavg and tmax
+ffires = ffires %>% rowwise() %>%  mutate(tmin = if_else(tmin == 0 & tavg != 0 & tmax != 0, (2*tavg)-tmax, tmin))
+
+save(ffires.weatherData, file = "data/ffires.weatherData.RData")
 ```
 
-```{r eval=FALSE, echo=FALSE}
-head(ffires.raw$lon)
+```{r load_ffires_weatherData, echo=F}
+load("data/ffires.weatherData.RData")
+ffires.raw = ffires.weatherData
+rm(ffires.weatherData)
+head(ffires.raw %>% select(alert, tavg, tavg15d, tmax, tmin, prcp))
 ```
 
-```{r eval=FALSE, echo=FALSE}
-vec_clean <- c("''"="", "E-12"="", "E-11"="", "E-02"="", ","=".", "º"=" ", "'"=" ", ":"=" ")
-ffires.raw$lat <- conv_unit(str_replace_all(str_trim(ffires.raw$lat), vec_clean), "deg_min_sec", "dec_deg")
-# Ocorre um warning ao executar essa linha
-ffires.raw$lon <- conv_unit(str_replace_all(str_trim(ffires.raw$lon, side = "both"), vec_clean), "deg_min_sec", "dec_deg")
-# Workaround
-ffires.raw$lon[7511] <- conv_unit("8 34 21.5868000000013", "deg_min_sec", "dec_deg")
+After load weather data into `Forest Fire` dataset, some steps of data imputation were performed to reduce the quantity od NA's and zero values. The reasoning for imputation was calculate the value based on other variables. For instance, `tavg` variable with NA or zero value, check if there is values for `tmax` and `tmin` and calculate the average temperature. For `tmax` variable with NA or zero value, check if there is values for `tavg` and `tmin` and calculate the maximum temperature, and so forth. Below it provided the summary of the new features after the data imputation:
+
+```{r summary_weatherData, echo=F}
+df_status(ffires.raw %>% select(tavg, tavg15d, tmax, tmin, prcp))
 ```
 
-After the transformation, the values were corrected.
+### Based on Features {-}
 
-Here are the first lines of lat variable
-```{r eval=FALSE, echo=FALSE}
-head(ffires.raw$lat)
-```
-and here are the first lines of lon variable
-```{r eval=FALSE, echo=FALSE}
-head(ffires.raw$lon)
-```
+The variable `alert` provides relevant information for the goal of this analysis. The quantity of unique values for this variable is 7313. This quantity can represent noise for the predictive model. For this reason, it was created two new features based on it: `alert_month` and `alert_period`. The first one is a numeric variable with the month of a fire alert. The latter one is an ordinal feature with 4 values *Morning*, *Afternoon*, *Night*, *Dawn* with a slot of 6 hours each one. After creation of these new features, the `alert` variable was removed from dataset.
 
----------------???????????????????????????????---------------------
-Data imputation: firstInterv_date and firstInterv_hour
-```{r eval=FALSE, echo=FALSE}
-ffires.raw <- ffires.raw %>% rowwise() %>% mutate(firstInterv_date = if_else( is.na(firstInterv_date) && !is.na(extinction_date), extinction_date , firstInterv_date),firstInterv_hour = if_else( is.na(firstInterv_hour) && !is.na(extinction_hour), extinction_hour , firstInterv_hour))
-```
+Another new feature called `duration` was created based on `alert` and `extinction` variables. Its value is the elapsed time between fire alert and its extinction. We consider that information can be useful help to predict the fire cause type as rekindling.
 
-Fix data type as factor on the variables below.
-```{r eval=FALSE, echo=FALSE}
-fires.raw$region = as.factor(fires.raw$region)
-fires.raw$district = as.factor(fires.raw$district)
-fires.raw$municipality = as.factor(fires.raw$municipality)
-fires.raw$parish = as.factor(fires.raw$parish)
-fires.raw$origin = as.factor(fires.raw$origin)
-fires.raw$cause_type = as.factor(fires.raw$cause_type)
-glimpse(fires.raw)
+```{r feature_engenier_alert, echo=F}
+#Create feature: alert_month
+ffires.raw$alert_month = month(ffires.raw$alert, label = FALSE)
+
+#Create feature: alert_period
+ffires.raw$alert_period = if_else(between(hour(ffires.raw$alert),6,11),"Morning",if_else(between(hour(ffires.raw$alert),12,17),"Afternoon",if_else(between(hour(ffires.raw$alert),18,23),"Night", "Dawn")))
+
+#Create feature: duration
+ffires.raw = ffires.raw %>% rowwise() %>% mutate(duration = (extinction-alert)/60)
+
+ffires.raw = ffires.raw %>% select(-alert)
+
+ffires.raw$alert_month = as.factor(ffires.raw$alert_month)
+ffires.raw$alert_period = as.factor(ffires.raw$alert_period)
+ffires.raw$duration = as.numeric(ffires.raw$duration)
+
+ffires.raw = as_tibble(ffires.raw)
 ```
 
-Creating new features
-Variable alert 
-```{r eval=FALSE, echo=FALSE}
-fires.raw <- fires.raw %>% rowwise() %>% 
-  mutate(alert = ymd_hms(str_c(alert_date, alert_hour, sep=" ")),
-         extinction = ymd_hms(str_c(extinction_date, extinction_hour, sep=" ")),
-         firstInterv = ymd_hms(str_c(firstInterv_date, firstInterv_hour, sep=" ")),
-         latency_alert_interv = (firstInterv - alert)/60,
-         latency_interv_ext = (extinction - firstInterv)/60,
-         latency_alert_ext = (extinction - alert)/60)
+After this process of feature engineering the `Forest Fires` dataset now he has 24 variables as against 21 from the original dataset. A summary for the new dataset is shown the table below:
 
-fires.raw <- as_tibble(fires.raw)
-df_status(fires.raw)
+```{r summary_ffires_full, echo=F}
+df_status(ffires.raw)
+``` 
+
+## Dimensionality Reduction
+
+Dimensionality reduction consists of the process of reducing the number of features in a dataset in order to eliminate the noise and features redundancy and create a more compact projection of the data. After previous preprocessing steps performed, the `Forest Fires` dataset has now 24 variables and some of them are redundant or irrelevant to the context of this problem.
+
+The variables `region`, `district`, `municipality` and `parish` has a high correlation once that one is a subdivision of another. A set of parishes is part of a municipality. In turn, a set of municipalities is part of a district. Thus, as the variable `region` has a lot of number of NA, and the variables `municipality` and `parish` are subdivisions of districts, they are irrelevant/redundant for the context and they were removed from the dataset.
+
+The variables `village_veget_area` and `total_area` are redundants because contains a somatory of values of the variables `village_area`, `vegetation_area` and `farming_area`. Thus, they were removed from the dataset.
+
+The variables `lat` and `lon` were important to retrieve the weather data from the nearest station. Once these data were inserted into the dataset, these variables became irrelevant to the context and they were removed from the dataset.
+
+The variables `tmax` and `tmin` were important in order to performe data imputation into the `tavg` variable. After that they became irrelevant to the context and they were removed from the dataset.
+
+The variables `id`, `firstInterv`, and `extinction` were considered irrelevants to the context once their values dont't provide useful information that can help to predict cause of forest fire, thus, these variables were removed from the dataset.
+
+Thus, the dimensionality of the `Forest Fires` was reduced and has now 12 features considered relevants to the context. These variables are displyed below:
+
+```{r dim_reduction, echo=F}
+# Selection of relevant features (remove redundancy) ----
+ffires.raw = ffires.raw %>% select(district, origin, alert_month, alert_period, duration, village_area, vegetation_area, farming_area, tavg, tavg15d, prcp, cause_type)
+names(ffires.raw)
 ```
 
--------------save(fires.raw, file = "fires.raw.RData")-----
-```{r echo=FALSE}
-#load("fires.raw.RData")
+
+
+## Feature Selection
+
+Feature selection refers to techniques that select a subset of the most relevant features for a dataset. 
+
+Once made the dimensionality reduction, it needs to check which the previously selected variables are really relevant. For this, it was used the Recursive Feature Elimination (RFE), the most widely used wrapper-type feature selection algorithm.
+
+RFE is popular because it is easy to configure and use and because it is effective at selecting those features in a training set that are more or most relevant in predicting the target variable.
+
+There are two important configuration options when using RFE: the choice in the number of features to select and the choice of the algorithm used to help choose features.
+
+* `size`: a integer vector for the specific subset sizes that should be tested (which need not to include ncol(x))
+
+* `rfeControl`: a list of options that can be used to specify the model and the methods for prediction, ranking etc.
+
+In order to performe the feature selection, it was used the RFE algorithm implemented by [caret](https://topepo.github.io/caret/recursive-feature-elimination.html) package. The hyperparameters values used was`size=c(1:11)` that correspond all the predictors features and `rfeControl(functions=rfFuncs, method="repeatedcv", repeats=5)` that mean the Random Forest method was use with 5 rounds of 10-Fold Cross-Validation.
+
+```{r rfe_profile, eval=FALSE, include=FALSE}
+# Create train set and test set ----
+set.seed(123456)
+idx = createDataPartition(ffires.raw$cause_type, p = 0.7, list = FALSE)
+trainSet = ffires[ idx,] 
+testSet <- ffires[-idx,]
+
+# Recursive Feature Elimination -------------------------------------------------
+outcomeName <-'cause_type'
+predictors <- names(trainSet)[!names(trainSet) %in% outcomeName] 
+rfControl <- rfeControl(functions = rfFuncs, method = "repeatedcv", repeats = 5) 
+rfProfile <- rfe(trainSet[,predictors], trainSet[[outcomeName]], 
+                 sizes=c(1:11), rfeControl = rfControl) 
+
+save(rfProfile, file = "data/rfProfile.RData")
+
+rm(idx)
 ```
 
-## Data Exploration and Analysis
+
+The result of execution of RFE algorithm it provided below:
+
+
+```{r rfe_profile_result, echo=F}
+load("data/rfProfile.RData")
+rfProfile
+```
+
+
+```{r rfe_profile_plot, echo=F}
+plot(rfProfile, type = c("g", "o"))
+```
+
+The variables selected were:
+
+```{r rfe_selected_variables,echo=F}
+predictors(rfProfile)
+```
+
+
+## Exploratory Data Analysis
 
 Understanding the structure of the data, the distribution of the variables, and the relationships between them is fundamental to build a solid model.
 
@@ -413,7 +586,8 @@ Based on the dataset we ploted some graphics that helped us to get some conclusi
 Figure \@ref(fig:month-ratings) depicts the bar graphic of the distribution of forests fires during 2015. The x-axis represents the months along the year 0f 2015 and the y-axis represents the total of fires that occurred by month.
 
 ```{r month-ratings, echo = FALSE, fig.align= "center", fig.cap= "\\label{month-ratings}Barplot of the distribution of forests fires during 2015."}
-ggplot(ffires.raw, aes(x = month(alert_date, label = T))) +
+load("ffiresFull.Rdata")
+ggplot(ffires.full, aes(x = month(alert_date, label = T))) +
   geom_bar(fill = "red") +
   ggtitle("Distribution of forests fires across 2015") +
   labs(x="Months", y="Total")
@@ -426,7 +600,7 @@ These two variables represents the areas of the occurrences and we can observe b
 The y-axis represents the regions and the x-axis represents the total of fires that occurred by region.
 
 ```{r region-ratings, echo = FALSE, fig.align= "center", fig.cap= "\\label{region-ratings}Barplot of the distribution of forests fires by regions."}
-ggplot(ffires.raw, aes(x = region)) +  geom_bar() + ggtitle("Distribution of forests fires by region") +
+ggplot(ffires.full, aes(x = region)) +  geom_bar() + ggtitle("Distribution of forests fires by region") +
   labs(x="Region", y="Total") + 
   coord_flip()
 ```
@@ -436,7 +610,7 @@ Observing this grafic we saw that Entre Douro e Minho was the region with more f
 The relationship between region, month and causes is represented on figure \@ref(fig:regmoncau-ratings). The x-axis includes the diferent regions, y-axis represents the months of ocurrences and the variable cause is showed by colours listed on the labels.
 
 ```{r regmoncau-ratings,echo = FALSE, fig.align= "center", fig.cap= "\\label{regmoncau-ratings}Distribution of forests fires relating region, month and causes."}
-ggplot(ffires.raw, aes(x = region, y = month(alert_date, label = T)))  + geom_point(aes(color = cause_type)) + ggtitle("Relationship between region and month") + labs(x="Region", y="Months")+ 
+ggplot(ffires.full, aes(x = region, y = month(alert_date, label = T)))  + geom_point(aes(color = cause_type)) + ggtitle("Relationship between region and month") + labs(x="Region", y="Months")+ 
   coord_flip()
 ```
 
@@ -456,7 +630,7 @@ This graphic indicates that Porto and Viana do Castelo were the districts with m
 The relationship between district, month and causes is represented on figure \@ref(fig:dismoncau-ratings). The x-axis includes the diferent districts, y-axis represents the months of ocurrences and the variable cause is showed by colours listed on the labels.
 
 ```{r dismoncau-ratings, echo = FALSE, fig.align= "center", fig.cap= "\\label{dismoncau-ratings}Distribution of forests fires relating district, month and causes."}
-ggplot(ffires.raw, aes(x = district, y = month(alert_date, label = T))) + geom_point(aes(color = cause_type)) + ggtitle("Relationship between district, month and cause_type")+
+ggplot(ffires.full, aes(x = district, y = month(alert_date, label = T))) + geom_point(aes(color = cause_type)) + ggtitle("Relationship between district, month and cause_type")+
   labs(x="District", y="Months") + 
   coord_flip()
 ```
@@ -491,69 +665,9 @@ ffires %>%
 A thing that calls our attention is the difference between the number of fires that were caused by negligence and by natural causes. The number of forest fires caused intentionally were almost the half of the negligent causes  what is an alarmant number.
 
 
-## Feature Engineering {#feature-engineering}
-Deriving new variables from available data and merging datasets WEATHER DATA AND FOREST FIRES getting new variables that can help on the predictions.
-```{r  eval=FALSE, include=FALSE}
-load("data/station_data.Rdata")
-
-
-```
-
-We did an imputation of value in tavg variable based on tmax and tmin,
-in tavg variable based on tavg15d, in tavg15d variable if NaN,
-in tmax variable based on tavg and tmin, in tmin variable based on tavg and tmax
-```{r eval=FALSE, include=FALSE}
-ffires = ffires %>% rowwise() %>%  mutate(tavg = if_else(tavg == 0 & tmax != 0 & tmin != 0, (tmax+tmin)/2, tavg))
-ffires = ffires %>% rowwise() %>%  mutate(tavg = if_else(tavg == 0 & tavg15d != 0, tavg15d, tavg))
-ffires = ffires %>% rowwise() %>%  mutate(tavg15d = if_else(is.nan(tavg15d), 0, tavg15d))
-ffires = ffires %>% rowwise() %>%  mutate(tmax = if_else(tmax == 0 & tavg != 0 & tmin != 0, (2*tavg)-tmin, tmax))
-ffires = ffires %>% rowwise() %>%  mutate(tmin = if_else(tmin == 0 & tavg != 0 & tmax != 0, (2*tavg)-tmax, tmin))
-ffires = as_tibble(ffires)
-
-#save(ffires, file = "ffires.RData")
-
-load("ffires.RData")
-
-df_status(ffires)
-```
-
-## Feature Selection
-Identifying those input variables that are most relevant to the task.
-First, we rename the dataset and extracted some variables to minimize it.
-The variables "parish" and "municipality" have many diferent observations,
-"id" can be retired because it is only the number of the lines of dataset and we don´t need this column, "region" has 501 NA´s and we don´t have how to substitute them, "alert_source" only has NA´s and it can be removed.
-```{r eval=FALSE, echo = FALSE}
-ffires.rf = ffires
-ffires.rf = ffires.rf %>% select(-id, -region, -municipality, -parish, -alert_source, -alert_date, -alert_hour, -firstInterv_date, -firstInterv_hour, -extinction_date, -extinction_hour)
-ffires.rf = ffires.rf %>% filter(!is.na(extinction))
-ffires.rf = ffires.rf %>% filter(!is.na(firstInterv))
-```
-
-changing to numeric
-```{r eval=FALSE, echo = FALSE}
-ffires.rf$lat = as.numeric(ffires.rf$lat)
-ffires.rf$lon = as.numeric(ffires.rf$lon)
-ffires.rf$latency_alert_ext = as.numeric(ffires.rf$latency_alert_ext)
-ffires.rf$latency_alert_interv = as.numeric(ffires.rf$latency_alert_interv)
-ffires.rf$latency_interv_ext = as.numeric(ffires.rf$latency_interv_ext)
-```
-
-##Creating train and test datasets
-```{r eval=FALSE, echo = FALSE}
-df_status(ffires.rf)
-set.seed(123456)
-idx.trainset = createDataPartition(ffires.rf$cause_type, p = 0.7, list = FALSE)
-trainSet = ffires.rf[ idx.trainset,] 
-testSet <- ffires.rf[-idx.trainset,]
-```
-
-## Dimensionality Reduction
-Creating compact projections of the data.
-
-
 # Prediction Models
 
-In this section was created 
+Predictive modeling is a technique that uses mathematical and computational methods to predict an event or result. The model is used to predict a result in some future state or moment based on changes in model inputs. The model parameters help to explain how the model inputs influence the result. 
 
 
 ## Distance-based Approach
@@ -567,28 +681,44 @@ It is an instance-based learning algorithm: it learns by analogy that is, they a
 ### Naive Bayes
 According to Bayes' theorem, it is possible to find the probability that a certain event will occur, given the probability of another event that has already occurred. Naive Bayes is a particular class of Bayesian classifiers that predicts the probability that a case belongs to a certain class. Due to its simplicity and high predictive power, it is one of the most used algorithms. This algorithm assumes that there is no dependency relationship between the attributes. However, this is not always possible. The algorithm reads the database and builds a probability table.In Bayesian classification, the main interest is to find the posterior probabilities, the probability of a label given some observed features.
 
+### Logistic Regression
+
+
 ## Mathematical Formulas
 
-### Linear Discriminants
+### Linear Discriminants Analisys (LDA)
+
+### Penalized Discriminants Analisys
 
 ## Logical Approaches
 
 ### Decision Trees
 The Decision Tree classification method works as a tree-shaped flowchart, where each node indicates a test done on a value. The connections between the nodes represent the possible values of the upper node test, and the leaves indicate the class to which the record belongs. After the decision tree is assembled, to classify a new record, just follow the flow in the tree starting at the root node until reaching a leaf. Due to the structure they form, decision trees can be converted into Classification Rules.
 
+### Tree Bag
+
 ## Optimization Approaches
 
 ### Neural Networks
-It basically consists of simulating the behavior of neurons. A neural network can be seen as a set of input and output units connected by intermediate layers and each connection has an associated weight. During the learning process, the network adjusts these weights to be able to correctly classify an object.Neural networks can work in ways that do not suffer from wrong values and can also identify patterns for which they have never been trained.
+A neural network is an adaptive system that learns using interconnected nodes or neurons in a layered structure that resembles the human brain. A neural network can learn from the data - so it can be trained to recognize patterns, classify data and predict future events.
+
+A neural network divides the input into layers of abstraction. He can be trained using many examples to recognize patterns in speech or images, for example, just like the human brain does. Their behavior is defined by the way their individual elements are connected and the strength, or weights, of those connections. These weights are automatically adjusted during training according to a specified learning rule until the artificial neural network performs the desired task correctly.
 
 ### SVM
-It is used for both classification and prediction tasks. It consists of separating classes that can be separated by a straight line, called linearly separated classes. The model tries to trace the separation based on the best distance between the closest points. There are variations of SVM, such as the Kernell trick, which allows applying SVM to a set of nonlinearly separable data.
+It is used for both classification and prediction tasks. It consists of separating classes that can be separated by a straight line, called linearly separated classes. The model tries to trace the separation based on the best distance between the closest points. There are variations of SVM, such as the Kernell trick, which allows applying SVM to a set of nonlinearly separable data. Support vector machines for binary or multiclass classification.
+#### Linear
+####Radial
+#### Polinomial
 
 ## Ensemble Approaches
 
 ### Random Forests
-Random forest is a supervised learning algorithm which is used mainly used for classification problems.  This algorithm creates decision trees on data samples and then gets the prediction from each of them and finally selects the best solution by means of voting. 
+Random forest is a supervised learning algorithm which is used mainly used for classification problems.  This algorithm creates decision trees on data samples and then gets the prediction from each of them and finally selects the best solution by means of voting. It gets a random sample with replacement from the training set, select some features at random and reduce dimensionality of the set, accordingly and train a tree model without pruning. It predicts the class obtained by majority vote averaging the output of each tree.
+
+### XGBoost
 
 # Conclusions, Shortcomings and Future Work
 
-# Appendix
+# References
+
+https://www.mathworks.com/?s_tid=gn_logo
