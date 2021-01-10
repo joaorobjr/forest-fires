@@ -736,13 +736,13 @@ load("models/knnModel.RData")
 knnModel
 ```
 
-Confusion matrix: 
+The confusion matrix is displayed below: 
 
 ```{r knn_cm, echo=F}
 confusionMatrix(knnModel)
 ```
 
-Performance: 
+Performance: the ROC curve was plotted below and shows the relationship between sensitivity and specificity. Classifiers that provide curves closer to the upper left corner have the corresponding area under the larger curves (AUCs) and indicate better performance.Multi-class area under the curve: 73.82%
 
 ```{r knn_performance, echo=F}
 #Make predictions
@@ -778,13 +778,13 @@ load("models/nbModel.RData")
 nbModel
 ```
 
-Confusion matrix:
+The confusion matrix is displayed below:
 
 ```{r nb_confusion_matrix, echo=F}
 confusionMatrix(nbModel)
 ```
 
-Performance: 
+the ROC curve was plotted below and shows the relationship between sensitivity and specificity. Classifiers that provide curves closer to the upper left corner have the corresponding area under the larger curves (AUCs) and indicate better performance. Multi-class area under the curve: 72.85%
 
 ```{r nb_performance, echo=F}
 # Make predictions
@@ -808,13 +808,13 @@ load("models/lrModel.RData")
 lrModel
 ```
 
-Confusion matrix: 
+The confusion matrix is displayed below:
 
 ```{r lr_cm, echo=F}
 confusionMatrix(lrModel)
 ```
 
-Performance: 
+the ROC curve was plotted below and shows the relationship between sensitivity and specificity. Classifiers that provide curves closer to the upper left corner have the corresponding area under the larger curves (AUCs) and indicate better performance. Multi-class area under the curve: 81.1%
 
 ```{r lr_performance, echo=F}
 #Make predictions
@@ -857,13 +857,13 @@ load("models/ldaModel.RData")
 ldaModel
 ```
 
-Confusion matrix: 
+The confusion matrix is displayed below: 
 
 ```{r lda_cm, echo=F}
 confusionMatrix(ldaModel)
 ```
 
-Performance: 
+the ROC curve was plotted below and shows the relationship between sensitivity and specificity. Classifiers that provide curves closer to the upper left corner have the corresponding area under the larger curves (AUCs) and indicate better performance. Multi-class area under the curve: 81.05%
 
 ```{r lda_performance, echo=F}
 #Make predictions
@@ -903,13 +903,13 @@ pdaModel
 ```
 
 
-Confusion matrix:
+The confusion matrix is displayed below:
 
 ```{r pda_confusion_matrix, echo=F}
 confusionMatrix(pdaModel)
 ```
 
-Performance: 
+the ROC curve was plotted below and shows the relationship between sensitivity and specificity. Classifiers that provide curves closer to the upper left corner have the corresponding area under the larger curves (AUCs) and indicate better performance. Multi-class area under the curve: 81.05%
 
 ```{r pda_performance, echo=F}
 # Make predictions
@@ -937,13 +937,13 @@ load("models/treeModel.RData")
 treeModel
 ```
 
-Confusion matrix:
+The confusion matrix is displayed below:
 
 ```{r tree_confusion_matrix, echo=F}
 confusionMatrix(treeModel)
 ```
 
-Performance: 
+the ROC curve was plotted below and shows the relationship between sensitivity and specificity. Classifiers that provide curves closer to the upper left corner have the corresponding area under the larger curves (AUCs) and indicate better performance. Multi-class area under the curve: 67.61%
 
 ```{r tree_performance, echo=F}
 # Make predictions
@@ -973,13 +973,13 @@ load("models/tbModel.RData")
 tbModel
 ```
 
-Confusion matrix:
+The confusion matrix is displayed below:
 
 ```{r tb_confusion_matrix, echo=F}
 confusionMatrix(tbModel)
 ```
 
-Performance: 
+the ROC curve was plotted below and shows the relationship between sensitivity and specificity. Classifiers that provide curves closer to the upper left corner have the corresponding area under the larger curves (AUCs) and indicate better performance. Multi-class area under the curve: 74.79%
 
 ```{r tb_performance, echo=F}
 # Make predictions
@@ -1007,13 +1007,13 @@ load("models/nnModel.RData")
 nnModel
 ```
 
-Confusion matrix: 
+The confusion matrix is displayed below:
 
 ```{r nn_cm, echo=F}
 confusionMatrix(nnModel)
 ```
 
-Performance: 
+the ROC curve was plotted below and shows the relationship between sensitivity and specificity. Classifiers that provide curves closer to the upper left corner have the corresponding area under the larger curves (AUCs) and indicate better performance. Multi-class area under the curve: 74.01%
 
 ```{r nn_performance, echo=F}
 #Make predictions
@@ -1049,13 +1049,13 @@ load("models/svmLinModel.RData")
 svmLinModel
 ```
 
-Confusion matrix:
+The confusion matrix is displayed below:
 
 ```{r svm_lin_confusion_matrix, echo=F}
 confusionMatrix(svmLinModel)
 ```
 
-Performance: 
+the ROC curve was plotted below and shows the relationship between sensitivity and specificity. Classifiers that provide curves closer to the upper left corner have the corresponding area under the larger curves (AUCs) and indicate better performance. Multi-class area under the curve: 78.36%
 
 ```{r svm_lin_performance, echo=F}
 # Make predictions
@@ -1083,13 +1083,13 @@ load("models/svmRadModel.RData")
 svmRadModel
 ```
 
-Confusion matrix:
+The confusion matrix is displayed below:
 
 ```{r svm_rad_confusion_matrix, echo=F}
 confusionMatrix(svmRadModel)
 ```
 
-Performance:
+the ROC curve was plotted below and shows the relationship between sensitivity and specificity. Classifiers that provide curves closer to the upper left corner have the corresponding area under the larger curves (AUCs) and indicate better performance.Multi-class area under the curve: 73.47%
 
 ```{r svm_rad_performance, echo=F}
 # Make predictions
@@ -1117,13 +1117,13 @@ load("models/svmPolModel.RData")
 svmPolModel
 ```
 
-Confusion matrix:
+The confusion matrix is displayed below:
 
 ```{r svm_pol_confusion_matrix, echo=F}
 confusionMatrix(svmPolModel)
 ```
 
-Performance: 
+the ROC curve was plotted below and shows the relationship between sensitivity and specificity. Classifiers that provide curves closer to the upper left corner have the corresponding area under the larger curves (AUCs) and indicate better performance. Multi-class area under the curve: 73.8%
 
 ```{r svm_pol_performance, echo=F}
 # Make predictions
@@ -1155,13 +1155,13 @@ load("models/rfModel.RData")
 rfModel
 ```
 
-Confusion matrix:
+The confusion matrix is displayed below:
 
 ```{r rf_confusion_matrix, echo=F}
 confusionMatrix(rfModel)
 ```
 
-Performance: 
+the ROC curve was plotted below and shows the relationship between sensitivity and specificity. Classifiers that provide curves closer to the upper left corner have the corresponding area under the larger curves (AUCs) and indicate better performance. Multi-class area under the curve: 79.6%
 
 ```{r rf_performance, echo=F}
 # Make predictions
@@ -1188,13 +1188,13 @@ load("models/xgbModel.RData")
 xgbModel
 ```
 
-Confusion matrix:
+The confusion matrix is displayed below:
 
 ```{r xgb_confusion_matrix, echo=F}
 confusionMatrix(xgbModel)
 ```
 
-Performance: 
+the ROC curve was plotted below and shows the relationship between sensitivity and specificity. Classifiers that provide curves closer to the upper left corner have the corresponding area under the larger curves (AUCs) and indicate better performance. Multi-class area under the curve: 83.11%
 
 ```{r xgb_performance, echo=F}
 # Make predictions
