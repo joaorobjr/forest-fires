@@ -559,17 +559,35 @@ In this section was created
 ## Distance-based Approach
 
 ### K-Nearest Neighbor
+It is an instance-based learning algorithm: it learns by analogy that is, they are based on the notion of similarity between cases. 
+
 
 ## Probabilistic Approach
 
+### Naive Bayes
+According to Bayes' theorem, it is possible to find the probability that a certain event will occur, given the probability of another event that has already occurred. Naive Bayes is a particular class of Bayesian classifiers that predicts the probability that a case belongs to a certain class. Due to its simplicity and high predictive power, it is one of the most used algorithms. This algorithm assumes that there is no dependency relationship between the attributes. However, this is not always possible. The algorithm reads the database and builds a probability table.In Bayesian classification, the main interest is to find the posterior probabilities, the probability of a label given some observed features.
+
 ## Mathematical Formulas
+
+### Linear Discriminants
 
 ## Logical Approaches
 
+### Decision Trees
+The Decision Tree classification method works as a tree-shaped flowchart, where each node indicates a test done on a value. The connections between the nodes represent the possible values of the upper node test, and the leaves indicate the class to which the record belongs. After the decision tree is assembled, to classify a new record, just follow the flow in the tree starting at the root node until reaching a leaf. Due to the structure they form, decision trees can be converted into Classification Rules.
+
 ## Optimization Approaches
+
+### Neural Networks
+It basically consists of simulating the behavior of neurons. A neural network can be seen as a set of input and output units connected by intermediate layers and each connection has an associated weight. During the learning process, the network adjusts these weights to be able to correctly classify an object.Neural networks can work in ways that do not suffer from wrong values and can also identify patterns for which they have never been trained.
+
+### SVM
+It is used for both classification and prediction tasks. It consists of separating classes that can be separated by a straight line, called linearly separated classes. The model tries to trace the separation based on the best distance between the closest points. There are variations of SVM, such as the Kernell trick, which allows applying SVM to a set of nonlinearly separable data.
 
 ## Ensemble Approaches
 
+### Random Forests
+Random forest is a supervised learning algorithm which is used mainly used for classification problems.  This algorithm creates decision trees on data samples and then gets the prediction from each of them and finally selects the best solution by means of voting. 
 
 # Conclusions, Shortcomings and Future Work
 
