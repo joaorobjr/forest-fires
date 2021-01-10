@@ -597,7 +597,7 @@ The `train()` function from `caret` was used to modeling all the predictive mode
 ctrl <- trainControl(method = "cv", number = 10, savePredictions = "final", classProbs = T)
 ```
 
-### Data Splitting
+## Data Splitting
 
 As a result of the data preparation and preprocessing, the forest fires dataset final has now 7502  observations. In order to build the predictive models, it was split into training and test sets where the first one containing 70% of the data, or precisely 5253 observations, and the second one containing 30% of the data corresponding to 2249 observations. The training of models was performed using the training set and the test set was used to assess the performance of them.
 
@@ -613,10 +613,7 @@ rm(idx)
 
 Distance-based algorithms are machine learning algorithms that classify queries by computing distances between these queries and a number of internally stored exemplars. Exemplars that are closest to the query have the largest in uence on the classification assigned to the query. Two speci c distance-based algorithms, the nearest neighbor algorithm and the nearest-hyperrectangle algorithm, are studied in detail. It is shown that the k-nearest neighbor algorithm (kNN)
 
-(Citeable URL: https://ir.library.oregonstate.edu/concern/graduate_thesis_or_dissertations/zw12z7835)
-
 ### K-Nearest Neighbor
-
 
 ```{r knn_model, eval=FALSE, echo=T, include=FALSE}
 knnModel <- train(cause_type ~ ., data = trainSet, method = "kknn", trControl = ctrl)
@@ -638,14 +635,7 @@ confusionMatrix(knnModel)
 Performance: 
 
 ```{r knn_performance, echo=F}
-# Make predictions
-knnPredict = predict(knnModel, testSet)
-# Model accuracy
-#mean(knnPredict == testSet$cause_type)
-
-# Make predictions
 knnPredict = predict(knnModel, testSet, type = "prob")
-
 par(mfrow=c(4,3))
 knnMultiRoc = multiclass.roc(testSet$cause_type, knnPredict, percent = T, plot = T, print.auc = T)
 auc(knnMultiRoc)
@@ -656,7 +646,7 @@ auc(knnMultiRoc)
 
 ### Naive Bayes
 
-```{r nb_model, eval=FALSE, echo=T, include=FALSE}
+```{r nb_model, eval=FALSE, echo=T, include=T}
 nbModel <- train(cause_type ~ ., data = trainSet, method = "naive_bayes", trControl = ctrl)
 ```
 
@@ -669,74 +659,184 @@ nbModel
 
 Confusion matrix:
 
-```{r knn_cm, echo=F}
+```{r nb_confusion_matrix, echo=F}
 confusionMatrix(nbModel)
 ```
 
 Performance: 
 
-```{r knn_performance, echo=F}
+```{r nb_performance, echo=F}
 # Make predictions
-nbPredict = predict(nbModel, testSet)
-# Model accuracy
-#mean(knnPredict == testSet$cause_type)
-
-# Make predictions
-knnPredict = predict(knnModel, testSet, type = "prob")
-
-par(mfrow=c(4,3))
-knnMultiRoc = multiclass.roc(testSet$cause_type, knnPredict, percent = T, plot = T, print.auc = T)
-auc(knnMultiRoc)
+nbPredict = predict(nbModel, testSet, type = "prob")
+par(mfrow=c(2,3))
+nbMultiRoc = multiclass.roc(testSet$cause_type, nbPredict, percent = T, plot = T, print.auc = T)
+auc(nbMultiRoc)
 ```
 
 ### Logistic Regression
 
 ```{r lr_model, eval=FALSE, include=FALSE}
-
+lrModel <- train(cause_type ~ ., data = trainSet, method = "multinom", trControl = ctrl)
 ```
-Discriminant analysis is used to predict the probability of belonging to a given class (or category) based on one or multiple predictor variables. It works with continuous and/or categorical predictor variables.
 
-Compared to logistic regression, the discriminant analysis is more suitable for predicting the category of an observation in the situation where the outcome variable contains more than two classes. Additionally, it’s more stable than the logistic regression for multi-class classification problems.
+Escrever os resultados
+
+```{r lr_results, echo=F}
+load("models/lrModel.RData")
+lrModel
+```
+
+Confusion matrix:
+
+```{r lr_confusion_matrix, echo=F}
+confusionMatrix(lrModel)
+```
+
+Performance: 
+
+```{r lr_performance, echo=F}
+# Make predictions
+lrPredict = predict(lrModel, testSet, type = "prob")
+par(mfrow=c(2,3))
+lrMultiRoc = multiclass.roc(testSet$cause_type, lrPredict, percent = T, plot = T, print.auc = T)
+auc(lrMultiRoc)
+```
 
 
 ## Mathematical Formulae
 
 ### Linear Discriminat Analysis
 
-```{r lda_model, eval=FALSE, include=FALSE}
+Discriminant analysis is used to predict the probability of belonging to a given class (or category) based on one or multiple predictor variables. It works with continuous and/or categorical predictor variables.
 
+Compared to logistic regression, the discriminant analysis is more suitable for predicting the category of an observation in the situation where the outcome variable contains more than two classes. Additionally, it’s more stable than the logistic regression for multi-class classification problems.
+
+Linear discriminant analysis (LDA) Uses linear combinations of predictors to predict the class of a given observation. Assumes that the predictor variables (p) are normally distributed and the classes have identical variances (for univariate analysis, p = 1) or identical covariance matrices (for multivariate analysis, p > 1).
+
+```{r lda_model, eval=FALSE, echo=T, include=FALSE}
+ldaModel <- train(cause_type ~ ., data = trainSet, method = "lda", trControl = ctrl)
 ```
+
+Escrever os resultados
+
+```{r lda_results, echo=F}
+load("models/ldaModel.RData")
+ldaModel
+```
+
+Confusion matrix:
+
+```{r lda_confusion_matrix, echo=F}
+confusionMatrix(ldaModel)
+```
+
+Performance: 
+
+```{r lda_performance, echo=F}
+# Make predictions
+ldaPredict = predict(ldaModel, testSet, type = "prob")
+par(mfrow=c(2,3))
+ldaMultiRoc = multiclass.roc(testSet$cause_type, ldaPredict, percent = T, plot = T, print.auc = T)
+auc(ldaMultiRoc)
+```
+
+
 
 ### Penalized Discriminant Analysis
 
-```{r pda_model, eval=FALSE, include=FALSE}
-
+```{r pda_model, eval=FALSE, echo=T, include=FALSE}
+pdaModel <- train(cause_type ~ ., data = trainSet, method = "pda", trControl = ctrl)
 ```
 
-Linear discriminant analysis (LDA): Uses linear combinations of predictors to predict the class of a given observation. Assumes that the predictor variables (p) are normally distributed and the classes have identical variances (for univariate analysis, p = 1) or identical covariance matrices (for multivariate analysis, p > 1).
 
-The LDA algorithm starts by finding directions that maximize the separation between classes, then use these directions to predict the class of individuals. These directions, called linear discriminants, are a linear combinations of predictor variables.
+Escrever os resultados
 
-LDA assumes that predictors are normally distributed (Gaussian distribution) and that the different classes have class-specific means and equal variance/covariance.
+```{r pda_results, echo=F}
+load("models/pdaModel.RData")
+pdaModel
+```
 
-Before performing LDA, consider:
 
-Inspecting the univariate distributions of each variable and make sure that they are normally distribute. If not, you can transform them using log and root for exponential distributions and Box-Cox for skewed distributions.
-removing outliers from your data and standardize the variables to make their scale comparable.
-The linear discriminant analysis can be easily computed using the function lda() [MASS package].
+Confusion matrix:
+
+```{r pda_confusion_matrix, echo=F}
+confusionMatrix(pdaModel)
+```
+
+Performance: 
+
+```{r pda_performance, echo=F}
+# Make predictions
+pdaPredict = predict(pdaModel, testSet, type = "prob")
+par(mfrow=c(2,3))
+pdaMultiRoc = multiclass.roc(testSet$cause_type, pdaPredict, percent = T, plot = T, print.auc = T)
+auc(pdaMultiRoc)
+```
+
 
 ## Logical Approaches
 
 ### Tree Bag
 
-```{r tb_model, eval=FALSE, include=FALSE}
+```{r tb_model, eval=FALSE, echo=T, include=FALSE}
+tbModel <- train(cause_type ~ ., data = trainSet, method = "treebag", trControl = ctrl)
+```
 
+
+Escrever os resultados
+
+```{r tb_results, echo=F}
+load("models/tbModel.RData")
+tbModel
+```
+
+Confusion matrix:
+
+```{r tb_confusion_matrix, echo=F}
+confusionMatrix(tbModel)
+```
+
+Performance: 
+
+```{r tb_performance, echo=F}
+# Make predictions
+tbPredict = predict(tbModel, testSet, type = "prob")
+par(mfrow=c(2,3))
+tbMultiRoc = multiclass.roc(testSet$cause_type, tbPredict, percent = T, plot = T, print.auc = T)
+auc(tbMultiRoc)
 ```
 
 ### Decision Tree
 
-```{r tree_model, eval=FALSE, include=FALSE}
+```{r tree_model, eval=FALSE, echo=T, include=FALSE}
+treeModel <- train(cause_type ~ ., data = trainSet, method = "rpart", trControl = ctrl)
+```
 
+
+Escrever os resultados
+
+```{r tree_results, echo=F}
+load("models/treeModel.RData")
+treeModel
+```
+
+Confusion matrix:
+
+```{r tree_confusion_matrix, echo=F}
+confusionMatrix(treeModel)
+```
+
+Performance: 
+
+```{r tree_performance, echo=F}
+# Make predictions
+treePredict = predict(treeModel, testSet, type = "prob")
+par(mfrow=c(2,3))
+treeMultiRoc = multiclass.roc(testSet$cause_type, treePredict, percent = T, plot = T, print.auc = T)
+auc(treeMultiRoc)
+
+#Plot tree
+prp(treeModel$finalModel, box.palette = "Reds", tweak = 1.2)
 ```
 
 ## Optimization Approaches
@@ -744,49 +844,294 @@ The linear discriminant analysis can be easily computed using the function lda()
 ### Neural Networks
 
 ```{r nn_model, eval=FALSE, include=FALSE}
-
+nnModel <- train(cause_type ~ ., data = trainSet, method = "nnet", trControl = ctrl)
 ```
+
+
+Escrever os resultados
+
+```{r nn_results, echo=F}
+load("models/nnModel.RData")
+nnModel
+```
+
+Confusion matrix:
+
+```{r nn_confusion_matrix, echo=F}
+confusionMatrix(nnModel)
+```
+
+Performance: 
+
+```{r nn_performance, echo=F}
+# Make predictions
+nnPredict = predict(nnModel, testSet, type = "prob")
+par(mfrow=c(2,3))
+nnMultiRoc = multiclass.roc(testSet$cause_type, nnPredict, percent = T, plot = T, print.auc = T)
+auc(nnMultiRoc)
+```
+
 
 ### Support Vector Machine
 
-#### Linear
+### Linear {-}
 
 ```{r svm_lin_model, eval=FALSE, include=FALSE}
-
+svmLinModel <- train(cause_type ~ ., data = trainSet, method = "svmLinear2", trControl = ctrl)
 ```
 
-#### Polynomial
+
+Escrever os resultados
+
+```{r svm_lin_results, echo=F}
+load("models/svmLinModel.RData")
+svmLinModel
+```
+
+Confusion matrix:
+
+```{r svm_lin_confusion_matrix, echo=F}
+confusionMatrix(svmLinModel)
+```
+
+Performance: 
+
+```{r svm_lin_performance, echo=F}
+# Make predictions
+svmLinPredict = predict(svmLinModel, testSet, type = "prob")
+par(mfrow=c(2,3))
+svmLinMultiRoc = multiclass.roc(testSet$cause_type, svmLinPredict, percent = T, plot = T, print.auc = T)
+auc(svmLinMultiRoc)
+```
+
+
+### Polynomial {-}
 
 ```{r svm_pol_model, eval=FALSE, include=FALSE}
-
+svmPolModel <- train(cause_type ~ ., data = trainSet, method = "svmPoly", trControl = ctrl)
+#save(svmPolModel, file = "models/svmPolModel.RData")
 ```
 
-#### Radial
+
+Escrever os resultados
+
+```{r svm_pol_results, echo=F}
+load("models/svmPolModel.RData")
+svmPolModel
+```
+
+Confusion matrix:
+
+```{r svm_pol_confusion_matrix, echo=F}
+confusionMatrix(svmPolModel)
+```
+
+Performance: 
+
+```{r svm_pol_performance, echo=F}
+# Make predictions
+svmPolPredict = predict(svmPolModel, testSet, type = "prob")
+par(mfrow=c(2,3))
+svmPolMultiRoc = multiclass.roc(testSet$cause_type, svmPolPredict, percent = T, plot = T, print.auc = T)
+auc(svmPolMultiRoc)
+```
+
+### Radial {-}
 
 ```{r svm_rad_model, eval=FALSE, include=FALSE}
-
+svmRadModel <- train(cause_type ~ ., data = trainSet, method = "svmRadial", trControl = ctrl)
+#save(svmRadModel, file = "models/svmRadModel.RData")
 ```
+
+
+Escrever os resultados
+
+```{r svm_rad_results, echo=F}
+load("models/svmRadModel.RData")
+svmRadModel
+```
+
+Confusion matrix:
+
+```{r svm_rad_confusion_matrix, echo=F}
+confusionMatrix(svmRadModel)
+```
+
+Performance:
+
+```{r svm_rad_performance, echo=F}
+# Make predictions
+svmRadPredict = predict(svmRadModel, testSet, type = "prob")
+par(mfrow=c(2,3))
+svmRadMultiRoc = multiclass.roc(testSet$cause_type, svmRadPredict, percent = T, plot = T, print.auc = T)
+auc(svmRadMultiRoc)
+```
+
 
 ## Ensemble Approaches
 
 ### Random Forest
 
 ```{r rf_model, eval=FALSE, include=FALSE}
-
+rfModel <- train(cause_type ~ ., data = trainSet, method = "rf", trControl = ctrl)
+#save(rfModel, file = "models/rfModel.RData")
 ```
+
+
+Escrever os resultados
+
+```{r rf_results, echo=F}
+load("models/rfModel.RData")
+rfModel
+```
+
+Confusion matrix:
+
+```{r rf_confusion_matrix, echo=F}
+confusionMatrix(rfModel)
+```
+
+Performance: 
+
+```{r rf_performance, echo=F}
+# Make predictions
+rfPredict = predict(rfModel, testSet, type = "prob")
+par(mfrow=c(2,3))
+rfMultiRoc = multiclass.roc(testSet$cause_type, rfPredict, percent = T, plot = T, print.auc = T)
+auc(rfMultiRoc)
+```
+
 
 ### eXtreme Gradiente Boost
 
-
 ```{r xgb_model, eval=FALSE, include=FALSE}
-
+#save(xgbModel, file = "models/xgbModel.RData")
 ```
 
 
+Escrever os resultados
+
+```{r xgb_results, echo=F}
+load("models/xgbModel.RData")
+xgbModel
+```
+
+Confusion matrix:
+
+```{r xgb_confusion_matrix, echo=F}
+confusionMatrix(xgbModel)
+```
+
+Performance: 
+
+```{r xgb_performance, echo=F}
+# Make predictions
+xgbPredict = predict(xgbModel, testSet, type = "prob")
+par(mfrow=c(4,3))
+xgbMultiRoc = multiclass.roc(testSet$cause_type, xgbPredict, percent = T, plot = T, print.auc = T)
+auc(xgbMultiRoc)
+```
+
+
+
 ## Assess Models
+
+```{r}
+
+rs <- resamples(list("K-Nearest Neighbors" = knnModel,
+                     "Naive Bayes" = nbModel,
+                     "Logistic Regression" = lrModel,
+                     "Linear Discriminants" = ldaModel,
+                     "Penalized Discriminants" = pdaModel,
+                     "Decision Tree" = treeModel, 
+                     "Tree Bag" = tbModel,
+                     "Neural Networks" = nnModel,
+                     "SVM (Linear)" = svmLinModel,
+                     "SVM (Poly)" = svmPolModel,
+                     "SVM (Radial)" = svmRadModel,
+                     "Random Forest" = rfModel, 
+                     "XGBoost" = xgbModel)) 
+                     
+summary(rs)
+
+library(DALEX)
+
+predictors = testSet[,-11]
+outcome = testSet$cause_type
+
+explainer_knn <- explain(rfModel, predictors, outcome, label = "K-Nearest Neighbors")
+explainer_nb  <- explain(nbModel, predictors, outcome, label = "Naive Bayes")
+explainer_lr <- explain(lrModel, predictors, outcome, label = "Logistic Regression")
+explainer_lda <- explain(ldaModel, predictors, outcome, label = "Linear Discriminants")
+explainer_pda <- explain(pdaModel, predictors, outcome, label = "Penalized Discriminants")
+explainer_tree <- explain(treeModel, predictors, outcome, label = "Decision Tree")
+explainer_tb <- explain(tbModel, predictors, outcome, label = "Tree Bag")
+explainer_nn <- explain(nnModel, predictors, outcome, label = "Neural Networks")
+explainer_svmLin <- explain(svmLinModel, predictors, outcome, label = "SVM Linear")
+explainer_svmPol <- explain(svmPolModel, predictors, outcome, label = "SVM Polynomyal")
+explainer_svmRad <- explain(svmRadModel, predictors, outcome, label = "SVM Radial")
+explainer_rf <- explain(rfModel, predictors, outcome, label = "Random Forest")
+explainer_xgb <- explain(xgbModel, predictors, outcome, label = "XGBoost")
+
+eva_knn = model_performance(explainer_knn)
+eva_nb = model_performance(explainer_nb)
+eva_lr = model_performance(explainer_lr)
+eva_lda = model_performance(explainer_lda)
+eva_pda = model_performance(explainer_pda)
+eva_tree = model_performance(explainer_tree)
+eva_tb = model_performance(explainer_tb)
+eva_nn = model_performance(explainer_nn)
+eva_svmLin = model_performance(explainer_svmLin)
+eva_svmPol = model_performance(explainer_svmPol)
+eva_svmRad = model_performance(explainer_svmRad)
+eva_rf = model_performance(explainer_rf)
+eva_xgb = model_performance(explainer_xgb)
+
+models = c("K-Nearest Neighbors", 
+           "Naive Bayes",
+           "Logistic Regression", 
+           "Linear Discriminants", 
+           "Penalized Discriminants", 
+           "Decision Tree",
+           "Tree Bag",
+           "Neural Networks",
+           "SVM Linear",
+           "SVM Polynomyal",
+           "SVM Radial",
+           "Random Forest",
+           "XGBoost")
+
+accuracys = c(round(eva_knn$measures$accuracy*100,2),
+              round(eva_nb$measures$accuracy*100,2),
+              round(eva_lr$measures$accuracy*100,2),
+              round(eva_lda$measures$accuracy*100,2),
+              round(eva_pda$measures$accuracy*100,2),
+              round(eva_tree$measures$accuracy*100,2),
+              round(eva_tb$measures$accuracy*100,2),
+              round(eva_nn$measures$accuracy*100,2),
+              round(eva_svmLin$measures$accuracy*100,2),
+              round(eva_svmPol$measures$accuracy*100,2),
+              round(eva_svmRad$measures$accuracy*100,2),
+              round(eva_rf$measures$accuracy*100,2),
+              round(eva_xgb$measures$accuracy*100,2))
+
+models_acc = data.frame(model=models, accuracy=accuracys)
+
+ggplot(models_acc, aes(x=reorder(model, accuracy), y=accuracy, color=accuracy)) + 
+  geom_bar(stat="identity", color='skyblue',fill='steelblue', width = 0.7) +
+  geom_text(aes(label=accuracy), vjust=0.4, hjust=1.5, color="white", size=3.5) +
+  xlab("Model") + ylab("Accuracy") +
+  ggtitle("Rank of Model Performance by Accuracy (%)") +
+  theme_minimal() + 
+  coord_flip()
+
+plot(eva_knn, eva_nb, eva_lr, eva_lda, eva_pda, eva_tree, eva_tb, eva_nn, eva_svmLin, eva_svmPol, eva_svmRad, eva_rf, eva_xgb, geom = "boxplot", lossFunction = loss_accuracy()) 
+```
 
 
 # Conclusions
 
 
 # References
+
+1 - (Citeable URL: https://ir.library.oregonstate.edu/concern/graduate_thesis_or_dissertations/zw12z7835)

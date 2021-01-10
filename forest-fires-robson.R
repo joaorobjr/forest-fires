@@ -335,8 +335,11 @@ knnModel
 knnModel$pred
 knnModel$results
 knnModel$bestTune
-knnModel$finalModel
-confusionMatrix(knnModel)
+final = knnModel$finalModel
+
+final$best.parameters
+cm=confusionMatrix(knnModel)
+cm$table
 
 # Make predictions
 knnPredict = predict(knnModel, testSet, type = "prob")
@@ -353,18 +356,16 @@ Pred2 = prediction(Pred.cart, Test$n.use)
 plot(performance(Pred2, "tpr", "fpr"))
 abline(0, 1, lty = 2)
 
-
 library(trainSet)
 
 
+par(mfrow=c(4,3))
 
-par(mfrow=c(2,3))
+multiclass.roc(testSet$cause_type, knnPredict, percent = T, plot = T, print.auc = T)
 
-knnRoc = multiclass.roc(testSet$cause_type, knnPredict, percent = T, direction = ">", plot = c(add=F, par(title(main = "Teste"))), print.auc = T)
+auc(knnRoc)
 
-knnRoc$rocs$`intentional/natural`
-
-names(knnRoc$rocs[1])
+names(knnRoc$rocs)
 rs <- knnRoc[['rocs']]
 plot.roc(rs[1])
 sapply(2:length(rs),function(i) lines.roc(rs[[i]],col=i))
