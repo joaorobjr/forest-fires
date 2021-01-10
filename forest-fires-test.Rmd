@@ -497,6 +497,106 @@ After this process of feature engineering the `Forest Fires` dataset now he has 
 df_status(ffires.raw)
 ``` 
 
+## Data Analysis
+
+Understanding the structure of the data, the distribution of the variables, and the relationships between them is fundamental to build a solid model.
+
+Based on the dataset we ploted some graphics that helped us to get some conclusions and showed a general notion about the problem of the forests fires.
+
+Figure \@ref(fig:month-ratings) depicts the bar graphic of the distribution of forests fires during 2015. The x-axis represents the months along the year 0f 2015 and the y-axis represents the total of fires that occurred by month.
+
+```{r month-ratings, echo = FALSE, fig.align= "center", fig.cap= "\\label{month-ratings}Barplot of the distribution of forests fires during 2015."}
+load("ffiresFull.Rdata")
+ggplot(ffires.full, aes(x = month(alert_date, label = T))) +
+  geom_bar(fill = "red") +
+  ggtitle("Distribution of forests fires across 2015") +
+  labs(x="Months", y="Total")
+```
+
+This graphic showed us that july and august are the months with the largest ocurrences and the period between march and september needs more atention. Probably we will consider the variable month as important to the analisys.
+
+### Region and District
+These two variables represents the areas of the occurrences and we can observe by summary that the variable region has a lot of NA´s (501) that corresponds to 6,67% of the total of lines. The distribution of the occurrences by region can be observed in the grafic \@ref(fig:region-ratings).
+The y-axis represents the regions and the x-axis represents the total of fires that occurred by region.
+
+```{r region-ratings, echo = FALSE, fig.align= "center", fig.cap= "\\label{region-ratings}Barplot of the distribution of forests fires by regions."}
+ffires.full %>%
+  group_by(region) %>%
+  count(region) %>% ggplot(., aes(x = reorder(region, n), y = n)) +  geom_col() + ggtitle("Distribution of forests fires by region") +
+  labs(x="Region", y="Total") + 
+  coord_flip()
+```
+
+Observing this grafic we saw that Entre Douro e Minho was the region with more forests fires and other regions like Centro, Lisboa and Norte were with minimum occurrences.
+
+The relationship between region, month and causes is represented on figure \@ref(fig:regmoncau-ratings). The x-axis includes the diferent regions, y-axis represents the months of ocurrences and the variable cause is showed by colours listed on the labels.
+
+```{r regmoncau-ratings,echo = FALSE, fig.align= "center", fig.cap= "\\label{regmoncau-ratings}Distribution of forests fires relating region, month and causes."}
+ggplot(ffires.full, aes(x = region, y = month(alert_date, label = T)))  + geom_point(aes(color = cause_type)) + ggtitle("Relationship between region and month") + labs(x="Region", y="Months")+ 
+  coord_flip()
+```
+
+Another important graphic is the figure \@ref(fig:district-ratings) that corresponds to the distribution of forests fires by district. The y-axis represents the districts and the x-axis represents the total of fires that occurred by region.
+
+```{r district-ratings, echo = FALSE, fig.align= "center", fig.cap= "\\label{district-ratings}Barplot of the distribution of forests fires by districts."}
+load("ffires.Rdata")
+ffires %>%
+  group_by(district) %>%
+  count(district) %>% ggplot(., aes(x = reorder(district, n), y = n)) +  geom_col() + ggtitle("Distribution of forests fires by district") +
+  labs(x="District", y="Total") + 
+  coord_flip()
+```
+
+This graphic indicates that Porto and Viana do Castelo were the districts with more forests fires.
+
+The relationship between district, month and causes is represented on figure \@ref(fig:dismoncau-ratings). The x-axis includes the diferent districts, y-axis represents the months of ocurrences and the variable cause is showed by colours listed on the labels.
+
+```{r dismoncau-ratings, echo = FALSE, fig.align= "center", fig.cap= "\\label{dismoncau-ratings}Distribution of forests fires relating district, month and causes."}
+ggplot(ffires.full, aes(x = district, y = month(alert_date, label = T))) + geom_point(aes(color = cause_type)) + ggtitle("Relationship between district, month and cause_type")+
+  labs(x="District", y="Months") + 
+  coord_flip()
+```
+
+
+### Origin
+Origin informs the reason that the fire started and apparently appears to be an important observation for evaluation.It can be observed in figure \@ref(fig:origin-ratings).
+
+On the x-axis are listed the diferent origins and on y-axis represents the total of fires that occurred.
+
+```{r origin-ratings, echo = FALSE, fig.align= "center", fig.cap= "\\label{origin-ratings}Barplot of the distribution of forests fires by origins."}
+ffires.full %>%
+  group_by(origin) %>%
+  count(origin) %>% ggplot(., aes(x = reorder(origin, n), y = n)) + geom_col(fill = "blue") + ggtitle("Distribution of forests fires by origin across 2015")+
+  labs(x="Origin", y="Total")
+```
+
+The firepit was the origin of the most forests fires comparing it with the other origins.
+
+
+### Cause type
+This is the variable to be predicted by the model that will be chosen.It shows the four causes of the occurrences: intentional, natural, negligent and rekindling. They can be observed in the graphic \@ref(fig:causes-ratings) below.
+On the x-axis are listed the diferent causes and on y-axis represents the total of fires that occurred.
+
+```{r causes-ratings,echo = FALSE, fig.align= "center", fig.cap= "\\label{causes-ratings}Barplot of the distribution of forests fires by causes."}
+ffires.full %>%
+  group_by(cause_type) %>%
+  count(cause_type) %>% ggplot(., aes(x = reorder(cause_type, n), y = n)) + geom_col(color = "black", fill = "light blue") + ggtitle("Distribution of causes of fires")+
+  labs(x="Causes of Fires", y="Total")
+```
+
+A thing that calls our attention is the difference between the number of fires that were caused by negligence and by natural causes. The number of forest fires caused intentionally were almost the half of the negligent causes  what is an alarmant number.
+
+### TAVG, TAVG15d, TMax and TMin
+
+```{r tavg-ratings,echo = FALSE, fig.align= "center", fig.cap= "\\label{causes-ratings}GeomPoint of Average Temperature by month"}
+ggplot(ffires.full) + 
+  geom_boxplot(mapping = aes(x = tavg, y = month(alert_date, label = T)), size = 1.0, colour = "red") +
+  labs(x="TAVG", y="Months") + 
+  coord_flip()
+```
+
+### PRCP
+
 ## Dimensionality Reduction
 
 Dimensionality reduction consists of the process of reducing the number of features in a dataset in order to eliminate the noise and features redundancy and create a more compact projection of the data. After previous preprocessing steps performed, the `Forest Fires` dataset has now 24 variables and some of them are redundant or irrelevant to the context of this problem.
@@ -518,8 +618,6 @@ Thus, the dimensionality of the `Forest Fires` was reduced and has now 12 featur
 ffires.raw = ffires.raw %>% select(district, origin, alert_month, alert_period, duration, village_area, vegetation_area, farming_area, tavg, tavg15d, prcp, cause_type)
 names(ffires.raw)
 ```
-
-
 
 ## Feature Selection
 
@@ -577,94 +675,6 @@ predictors(rfProfile)
 ```
 
 
-## Exploratory Data Analysis
-
-Understanding the structure of the data, the distribution of the variables, and the relationships between them is fundamental to build a solid model.
-
-Based on the dataset we ploted some graphics that helped us to get some conclusions and showed a general notion about the problem of the forests fires.
-
-Figure \@ref(fig:month-ratings) depicts the bar graphic of the distribution of forests fires during 2015. The x-axis represents the months along the year 0f 2015 and the y-axis represents the total of fires that occurred by month.
-
-```{r month-ratings, echo = FALSE, fig.align= "center", fig.cap= "\\label{month-ratings}Barplot of the distribution of forests fires during 2015."}
-load("ffiresFull.Rdata")
-ggplot(ffires.full, aes(x = month(alert_date, label = T))) +
-  geom_bar(fill = "red") +
-  ggtitle("Distribution of forests fires across 2015") +
-  labs(x="Months", y="Total")
-```
-
-This graphic showed us that july and august are the months with the largest ocurrences and the period between march and september needs more atention. Probably we will consider the variable month as important to the analisys.
-
-### region and district
-These two variables represents the areas of the occurrences and we can observe by summary that the variable region has a lot of NA´s (501) that corresponds to 6,67% of the total of lines. The distribution of the occurrences by region can be observed in the grafic \@ref(fig:region-ratings).
-The y-axis represents the regions and the x-axis represents the total of fires that occurred by region.
-
-```{r region-ratings, echo = FALSE, fig.align= "center", fig.cap= "\\label{region-ratings}Barplot of the distribution of forests fires by regions."}
-ggplot(ffires.full, aes(x = region)) +  geom_bar() + ggtitle("Distribution of forests fires by region") +
-  labs(x="Region", y="Total") + 
-  coord_flip()
-```
-
-Observing this grafic we saw that Entre Douro e Minho was the region with more forests fires and other regions like Centro, Lisboa and Norte were with minimum occurrences.
-
-The relationship between region, month and causes is represented on figure \@ref(fig:regmoncau-ratings). The x-axis includes the diferent regions, y-axis represents the months of ocurrences and the variable cause is showed by colours listed on the labels.
-
-```{r regmoncau-ratings,echo = FALSE, fig.align= "center", fig.cap= "\\label{regmoncau-ratings}Distribution of forests fires relating region, month and causes."}
-ggplot(ffires.full, aes(x = region, y = month(alert_date, label = T)))  + geom_point(aes(color = cause_type)) + ggtitle("Relationship between region and month") + labs(x="Region", y="Months")+ 
-  coord_flip()
-```
-
-Another important graphic is the figure \@ref(fig:district-ratings) that corresponds to the distribution of forests fires by district. The y-axis represents the districts and the x-axis represents the total of fires that occurred by region.
-
-```{r district-ratings, echo = FALSE, fig.align= "center", fig.cap= "\\label{district-ratings}Barplot of the distribution of forests fires by districts."}
-load("ffires.Rdata")
-ffires %>%
-  group_by(district) %>%
-  count(district) %>% ggplot(., aes(x = reorder(district, n), y = n)) +  geom_col() + ggtitle("Distribution of forests fires by district") +
-  labs(x="District", y="Total") + 
-  coord_flip()
-```
-
-This graphic indicates that Porto and Viana do Castelo were the districts with more forests fires.
-
-The relationship between district, month and causes is represented on figure \@ref(fig:dismoncau-ratings). The x-axis includes the diferent districts, y-axis represents the months of ocurrences and the variable cause is showed by colours listed on the labels.
-
-```{r dismoncau-ratings, echo = FALSE, fig.align= "center", fig.cap= "\\label{dismoncau-ratings}Distribution of forests fires relating district, month and causes."}
-ggplot(ffires.full, aes(x = district, y = month(alert_date, label = T))) + geom_point(aes(color = cause_type)) + ggtitle("Relationship between district, month and cause_type")+
-  labs(x="District", y="Months") + 
-  coord_flip()
-```
-
-
-### origin
-Origin informs the reason that the fire started and apparently appears to be an important observation for evaluation.It can be observed in figure \@ref(fig:origin-ratings).
-
-On the x-axis are listed the diferent origins and on y-axis represents the total of fires that occurred.
-
-```{r origin-ratings, echo = FALSE, fig.align= "center", fig.cap= "\\label{origin-ratings}Barplot of the distribution of forests fires by origins."}
-ffires %>%
-  group_by(origin) %>%
-  count(origin) %>% ggplot(., aes(x = reorder(origin, n), y = n)) + geom_col(fill = "blue") + ggtitle("Distribution of forests fires by origin across 2015")+
-  labs(x="Origin", y="Total")
-```
-
-The firepit was the origin of the most forests fires comparing it with the other origins.
-
-
-### cause_type
-This is the variable to be predicted by the model that will be chosen.It shows the four causes of the occurrences: intentional, natural, negligent and rekindling. They can be observed in the graphic \@ref(fig:causes-ratings) below.
-On the x-axis are listed the diferent causes and on y-axis represents the total of fires that occurred.
-
-```{r causes-ratings,echo = FALSE, fig.align= "center", fig.cap= "\\label{causes-ratings}Barplot of the distribution of forests fires by causes."}
-ffires %>%
-  group_by(cause_type) %>%
-  count(cause_type) %>% ggplot(., aes(x = reorder(cause_type, n), y = n)) + geom_col(color = "black", fill = "light blue") + ggtitle("Distribution of causes of fires")+
-  labs(x="Causes of Fires", y="Total")
-```
-
-A thing that calls our attention is the difference between the number of fires that were caused by negligence and by natural causes. The number of forest fires caused intentionally were almost the half of the negligent causes  what is an alarmant number.
-
-
 # Prediction Models
 
 Predictive modeling is a technique that uses mathematical and computational methods to predict an event or result. The model is used to predict a result in some future state or moment based on changes in model inputs. The model parameters help to explain how the model inputs influence the result. 
@@ -673,10 +683,14 @@ Predictive modeling is a technique that uses mathematical and computational meth
 ## Distance-based Approach
 
 ### K-Nearest Neighbor
-It is an instance-based learning algorithm: it learns by analogy that is, they are based on the notion of similarity between cases. 
+
+Distance-based algorithms are machine learning algorithms that classify queries by computing distances between these queries and a number of internally stored exemplars. Exemplars that are closest to the query have the largest influence on the classification assigned to the query. The distance-based algorithm used in this study was the k-nearest neighbor algorithm (kNN).
 
 
 ## Probabilistic Approach
+Discriminant analysis is used to predict the probability of belonging to a given class (or category) based on one or multiple predictor variables. It works with continuous and/or categorical predictor variables.
+
+Compared to logistic regression, the discriminant analysis is more suitable for predicting the category of an observation in the situation where the outcome variable contains more than two classes. Additionally, it’s more stable than the logistic regression for multi-class classification problems.
 
 ### Naive Bayes
 According to Bayes' theorem, it is possible to find the probability that a certain event will occur, given the probability of another event that has already occurred. Naive Bayes is a particular class of Bayesian classifiers that predicts the probability that a case belongs to a certain class. Due to its simplicity and high predictive power, it is one of the most used algorithms. This algorithm assumes that there is no dependency relationship between the attributes. However, this is not always possible. The algorithm reads the database and builds a probability table.In Bayesian classification, the main interest is to find the posterior probabilities, the probability of a label given some observed features.
@@ -687,6 +701,17 @@ According to Bayes' theorem, it is possible to find the probability that a certa
 ## Mathematical Formulas
 
 ### Linear Discriminants Analisys (LDA)
+Linear discriminant analysis (LDA): Uses linear combinations of predictors to predict the class of a given observation. Assumes that the predictor variables (p) are normally distributed and the classes have identical variances (for univariate analysis, p = 1) or identical covariance matrices (for multivariate analysis, p > 1).
+
+The LDA algorithm starts by finding directions that maximize the separation between classes, then use these directions to predict the class of individuals. These directions, called linear discriminants, are a linear combinations of predictor variables.
+
+LDA assumes that predictors are normally distributed (Gaussian distribution) and that the different classes have class-specific means and equal variance/covariance.
+
+Before performing LDA, consider:
+
+Inspecting the univariate distributions of each variable and make sure that they are normally distribute. If not, you can transform them using log and root for exponential distributions and Box-Cox for skewed distributions.
+removing outliers from your data and standardize the variables to make their scale comparable.
+The linear discriminant analysis can be easily computed using the function lda() [MASS package].
 
 ### Penalized Discriminants Analisys
 
@@ -706,9 +731,10 @@ A neural network divides the input into layers of abstraction. He can be trained
 
 ### SVM
 It is used for both classification and prediction tasks. It consists of separating classes that can be separated by a straight line, called linearly separated classes. The model tries to trace the separation based on the best distance between the closest points. There are variations of SVM, such as the Kernell trick, which allows applying SVM to a set of nonlinearly separable data. Support vector machines for binary or multiclass classification.
-#### Linear
-####Radial
-#### Polinomial
+
+### Linear {-}
+### Radial {-}
+### Polinomial {-}
 
 ## Ensemble Approaches
 
@@ -722,3 +748,6 @@ Random forest is a supervised learning algorithm which is used mainly used for c
 # References
 
 https://www.mathworks.com/?s_tid=gn_logo
+
+(Citeable URL: https://ir.library.oregonstate.edu/concern/graduate_thesis_or_dissertations/zw12z7835)
+
