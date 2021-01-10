@@ -340,8 +340,36 @@ confusionMatrix(knnModel)
 
 # Make predictions
 knnPredict = predict(knnModel, testSet, type = "prob")
-multiclass.roc(testSet$cause_type, knnPredict, percent = T, plot = T, print.auc = T)
+predKnn = knnPredict[,2]
+df = data.frame(predKnn,testSet$cause_type)
 
+knnPredict2 = prediction(predKnn, testSet$cause_type) 
+
+knnPredict[,2]
+
+library("ROCR")
+Pred.cart = predict(train.cart, newdata = Test, type = "prob")[,2] 
+Pred2 = prediction(Pred.cart, Test$n.use) 
+plot(performance(Pred2, "tpr", "fpr"))
+abline(0, 1, lty = 2)
+
+
+library(trainSet)
+
+
+
+par(mfrow=c(2,3))
+
+knnRoc = multiclass.roc(testSet$cause_type, knnPredict, percent = T, direction = ">", plot = c(add=F, par(title(main = "Teste"))), print.auc = T)
+
+knnRoc$rocs$`intentional/natural`
+
+names(knnRoc$rocs[1])
+rs <- knnRoc[['rocs']]
+plot.roc(rs[1])
+sapply(2:length(rs),function(i) lines.roc(rs[[i]],col=i))
+
+knnRoc$
 # Model accuracy
 mean(knnPredict == testSet$cause_type)
 

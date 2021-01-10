@@ -66,7 +66,7 @@ require(ggplot2)
 require(devtools)
 require(caret)
 require(rpart.plot)
-require(kableExtra)
+require(pROC)
 # turns off scientific notation; to turn it back on, use scipen= 0
 options(scipen= 999)
 ```
@@ -491,6 +491,10 @@ After this process of feature engineering the `Forest Fires` dataset now he has 
 df_status(ffires.raw)
 ```
 
+## Data Exploration
+
+
+
 
 ## Dimensionality Reduction
 
@@ -569,28 +573,145 @@ The variables selected were:
 predictors(rfProfile)
 ```
 
+In according to RFE results, the variable `prcp` is not relevant to improve the models predictions and thus this variable was removed from dataset.
+
+```{r remove_prcp, echo=F}
+ffires = ffires.raw %>% select(-prcp)
+rm(ffires.raw)
+```
 
 
-# Exploratory Data Analysis
+# Predictive Models
 
-# Prediction Models
+Predictive modeling is a probabilistic process that allows to forecast outcomes, on the basis of some predictors. These predictors are features that come into play when deciding the final result, i.e. the outcome of the model.
 
-Predictive modeling is a probabilistic process that allows us to forecast outcomes, on the basis of some predictors. These predictors are basically features that come into play when deciding the final result, i.e. the outcome of the model.
+<explain the different type approaches adopted in this study>
 
-In this section was created
+## `Caret` Package
+
+The R `caret` allows us to create several powerful predictive models using a simplified and consistent modeling syntax. There are more than 200 different models available in `caret` which allows us with very little change to set up the resampling approach and the parameter tuning. Behind the scenes, `caret` automatically resamples the models and conducts parameter tuning. This way it is possible to build and compare models with very little overhead.
+
+The `train()` function from `caret` was used to modeling all the predictive models needs for this studied. Besides one, the function `trainControl()` which allows to set up several aspects of the model, like the resampling method, it was defined withe `method=cv` and `number=10` what means that was used the 10-fold cross-validation for all the predictive models created.
+
+```{r train_control, echo=T}
+ctrl <- trainControl(method = "cv", number = 10, savePredictions = "final", classProbs = T)
+```
+
+### Data Splitting
+
+As a result of the data preparation and preprocessing, the forest fires dataset final has now 7502  observations. In order to build the predictive models, it was split into training and test sets where the first one containing 70% of the data, or precisely 5253 observations, and the second one containing 30% of the data corresponding to 2249 observations. The training of models was performed using the training set and the test set was used to assess the performance of them.
+
+```{r split_data, echo=F}
+set.seed(123456)
+idx = createDataPartition(ffires$cause_type, p = 0.7, list = FALSE)
+trainSet = ffires[ idx,] 
+testSet = ffires[-idx,]
+rm(idx)
+```
 
 ## Distance-based Approach
 
+Distance-based algorithms are machine learning algorithms that classify queries by computing distances between these queries and a number of internally stored exemplars. Exemplars that are closest to the query have the largest in uence on the classification assigned to the query. Two speci c distance-based algorithms, the nearest neighbor algorithm and the nearest-hyperrectangle algorithm, are studied in detail. It is shown that the k-nearest neighbor algorithm (kNN)
+
+(Citeable URL: https://ir.library.oregonstate.edu/concern/graduate_thesis_or_dissertations/zw12z7835)
+
 ### K-Nearest Neighbor
 
+
+```{r knn_model, eval=FALSE, echo=T, include=FALSE}
+knnModel <- train(cause_type ~ ., data = trainSet, method = "kknn", trControl = ctrl)
+```
+
+The results for KNN were:
+
+```{r knn_results, echo=F}
+load("models/knnModel.RData")
+knnModel
+```
+
+Confusion matrix: 
+
+```{r knn_cm, echo=F}
+confusionMatrix(knnModel)
+```
+
+Performance: 
+
+```{r knn_performance, echo=F}
+# Make predictions
+knnPredict = predict(knnModel, testSet)
+# Model accuracy
+#mean(knnPredict == testSet$cause_type)
+
+# Make predictions
+knnPredict = predict(knnModel, testSet, type = "prob")
+
+par(mfrow=c(4,3))
+knnMultiRoc = multiclass.roc(testSet$cause_type, knnPredict, percent = T, plot = T, print.auc = T)
+auc(knnMultiRoc)
+```
+
+
 ## Probabilistic Approach
+
+### Naive Bayes
+
+```{r nb_model, eval=FALSE, echo=T, include=FALSE}
+nbModel <- train(cause_type ~ ., data = trainSet, method = "naive_bayes", trControl = ctrl)
+```
+
+Escrever os resultados
+
+```{r nb_results, echo=F}
+load("models/nbModel.RData")
+nbModel
+```
+
+Confusion matrix:
+
+```{r knn_cm, echo=F}
+confusionMatrix(nbModel)
+```
+
+Performance: 
+
+```{r knn_performance, echo=F}
+# Make predictions
+nbPredict = predict(nbModel, testSet)
+# Model accuracy
+#mean(knnPredict == testSet$cause_type)
+
+# Make predictions
+knnPredict = predict(knnModel, testSet, type = "prob")
+
+par(mfrow=c(4,3))
+knnMultiRoc = multiclass.roc(testSet$cause_type, knnPredict, percent = T, plot = T, print.auc = T)
+auc(knnMultiRoc)
+```
+
+### Logistic Regression
+
+```{r lr_model, eval=FALSE, include=FALSE}
+
+```
 Discriminant analysis is used to predict the probability of belonging to a given class (or category) based on one or multiple predictor variables. It works with continuous and/or categorical predictor variables.
 
 Compared to logistic regression, the discriminant analysis is more suitable for predicting the category of an observation in the situation where the outcome variable contains more than two classes. Additionally, it’s more stable than the logistic regression for multi-class classification problems.
 
 
-
 ## Mathematical Formulae
+
+### Linear Discriminat Analysis
+
+```{r lda_model, eval=FALSE, include=FALSE}
+
+```
+
+### Penalized Discriminant Analysis
+
+```{r pda_model, eval=FALSE, include=FALSE}
+
+```
 
 Linear discriminant analysis (LDA): Uses linear combinations of predictors to predict the class of a given observation. Assumes that the predictor variables (p) are normally distributed and the classes have identical variances (for univariate analysis, p = 1) or identical covariance matrices (for multivariate analysis, p > 1).
 
@@ -606,9 +727,61 @@ The linear discriminant analysis can be easily computed using the function lda()
 
 ## Logical Approaches
 
+### Tree Bag
+
+```{r tb_model, eval=FALSE, include=FALSE}
+
+```
+
+### Decision Tree
+
+```{r tree_model, eval=FALSE, include=FALSE}
+
+```
+
 ## Optimization Approaches
 
+### Neural Networks
+
+```{r nn_model, eval=FALSE, include=FALSE}
+
+```
+
+### Support Vector Machine
+
+#### Linear
+
+```{r svm_lin_model, eval=FALSE, include=FALSE}
+
+```
+
+#### Polynomial
+
+```{r svm_pol_model, eval=FALSE, include=FALSE}
+
+```
+
+#### Radial
+
+```{r svm_rad_model, eval=FALSE, include=FALSE}
+
+```
+
 ## Ensemble Approaches
+
+### Random Forest
+
+```{r rf_model, eval=FALSE, include=FALSE}
+
+```
+
+### eXtreme Gradiente Boost
+
+
+```{r xgb_model, eval=FALSE, include=FALSE}
+
+```
+
 
 ## Assess Models
 
