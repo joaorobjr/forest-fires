@@ -295,7 +295,6 @@ load("rfProfile.RData")
 
 rfProfile
 predictors(rfProfile)
-rfProfile$fit
 plot(rfProfile, type = c("g", "o"))
 
 # Boruta ------------------------------------------------------------------------
@@ -341,7 +340,7 @@ confusionMatrix(knnModel)
 
 # Make predictions
 knnPredict = predict(knnModel, testSet, type = "prob")
-multiclass.roc(testSet$cause_type, knnPredict, percent = T, plot = T)
+multiclass.roc(testSet$cause_type, knnPredict, percent = T, plot = T, print.auc = T)
 
 # Model accuracy
 mean(knnPredict == testSet$cause_type)
