@@ -721,13 +721,14 @@ Distance-based algorithms are machine learning algorithms that classify queries 
 
 ### K-Nearest Neighbor
 
-Distance-based algorithms are machine learning algorithms that classify queries by computing distances between these queries and a number of internally stored exemplars. Exemplars that are closest to the query have the largest influence on the classification assigned to the query. The distance-based algorithm used in this study was the k-nearest neighbor algorithm (kNN).
+
 
 ```{r knn_model, eval=FALSE, echo=T, include=FALSE}
 knnModel <- train(cause_type ~ ., data = trainSet, method = "kknn", trControl = ctrl)
 ```
 
-The results for KNN were:
+The package caret was used to create this model with the method "kknn".
+The tunning parameters used for the model were kmax = 9, distance = 2 and kernel = optimal and the accuracy reached 58.92%. 
 
 ```{r knn_results, echo=F}
 load("models/knnModel.RData")
@@ -744,14 +745,14 @@ Performance:
 
 ```{r knn_performance, echo=F}
 #Make predictions
-knnPredict = predict(knnModel, testSet)
+#knnPredict = predict(knnModel, testSet)
 # Model accuracy
 #mean(knnPredict == testSet$cause_type)
 
 # Make predictions
 knnPredict = predict(knnModel, testSet, type = "prob")
 
-par(mfrow=c(4,3))
+par(mfrow=c(2,3))
 knnMultiRoc = multiclass.roc(testSet$cause_type, knnPredict, percent = T, plot = T, print.auc = T)
 auc(knnMultiRoc)
 ```
@@ -770,7 +771,8 @@ According to Bayes' theorem, it is possible to find the probability that a certa
 lrModel <- train(cause_type ~ ., data = trainSet, method = "multinom", trControl = ctrl,)
 ```
 
-The results for Logistic Regression were:
+The package caret was used to create this model with the method "multinom".
+The accuracy reached 62.74%.
 
 ```{r lr_results, echo=F}
 load("models/lrModel.RData")
@@ -787,14 +789,14 @@ Performance:
 
 ```{r lr_performance, echo=F}
 #Make predictions
-lrPredict = predict(lrModel, testSet)
+#lrPredict = predict(lrModel, testSet)
 # Model accuracy
 #mean(knnPredict == testSet$cause_type)
 
 # Make predictions
 lrPredict = predict(lrModel, testSet, type = "prob")
 
-par(mfrow=c(4,3))
+par(mfrow=c(2,3))
 lrMultiRoc = multiclass.roc(testSet$cause_type, lrPredict, percent = T, plot = T, print.auc = T)
 auc(lrMultiRoc)
 ```
@@ -814,6 +816,39 @@ Inspecting the univariate distributions of each variable and make sure that they
 removing outliers from your data and standardize the variables to make their scale comparable.
 The linear discriminant analysis can be easily computed using the function lda() [MASS package].
 
+```{r lda_model, eval=FALSE, echo=T, include=FALSE}
+ldaModel <- train(cause_type ~ ., data = trainSet, method = "lda", trControl = ctrl)
+```
+
+The results for Logistic Regression were:
+
+```{r lda_results, echo=F}
+load("models/ldaModel.RData")
+ldaModel
+```
+
+Confusion matrix: 
+
+```{r lda_cm, echo=F}
+confusionMatrix(ldaModel)
+```
+
+Performance: 
+
+```{r lda_performance, echo=F}
+#Make predictions
+#ldaPredict = predict(ldaModel, testSet)
+# Model accuracy
+#mean(knnPredict == testSet$cause_type)
+
+# Make predictions
+ldaPredict = predict(ldaModel, testSet, type = "prob")
+
+par(mfrow=c(2,3))
+ldaMultiRoc = multiclass.roc(testSet$cause_type, ldaPredict, percent = T, plot = T, print.auc = T)
+auc(ldaMultiRoc)
+```
+
 ### Penalized Discriminants Analisys
 
 Penalized logistic regression imposes a penalty to the logistic model for having too many variables. This results in shrinking the coefficients of the less contributive variables toward zero. This is also known as regularization.
@@ -824,21 +859,141 @@ ridge regression: variables with minor contribution have their coefficients clos
 lasso regression: the coefficients of some less contributive variables are forced to be exactly zero. Only the most significant variables are kept in the final model.
 elastic net regression: the combination of ridge and lasso regression. It shrinks some coefficients toward zero (like ridge regression) and set some coefficients to exactly zero (like lasso regression).
 
+```{r pda_model, eval=FALSE, echo=T, include=FALSE}
+pdaModel <- train(cause_type ~ ., data = trainSet, method = "pda", trControl = ctrl)
+```
+
+
+Escrever os resultados
+
+```{r pda_results, echo=F}
+load("models/pdaModel.RData")
+pdaModel
+```
+
+
+Confusion matrix:
+
+```{r pda_confusion_matrix, echo=F}
+confusionMatrix(pdaModel)
+```
+
+Performance: 
+
+```{r pda_performance, echo=F}
+# Make predictions
+pdaPredict = predict(pdaModel, testSet, type = "prob")
+par(mfrow=c(2,3))
+pdaMultiRoc = multiclass.roc(testSet$cause_type, pdaPredict, percent = T, plot = T, print.auc = T)
+auc(pdaMultiRoc)
+```
+
 ## Logical Approaches
 
 ### Decision Trees
 The Decision Tree classification method works as a tree-shaped flowchart, where each node indicates a test done on a value. The connections between the nodes represent the possible values of the upper node test, and the leaves indicate the class to which the record belongs. After the decision tree is assembled, to classify a new record, just follow the flow in the tree starting at the root node until reaching a leaf. Due to the structure they form, decision trees can be converted into Classification Rules.
 
+```{r tree_model, eval=FALSE, echo=T, include=FALSE}
+treeModel <- train(cause_type ~ ., data = trainSet, method = "rpart", trControl = ctrl)
+```
+
+
+Escrever os resultados
+
+```{r tree_results, echo=F}
+load("models/treeModel.RData")
+treeModel
+```
+
+Confusion matrix:
+
+```{r tree_confusion_matrix, echo=F}
+confusionMatrix(treeModel)
+```
+
+Performance: 
+
+```{r tree_performance, echo=F}
+# Make predictions
+treePredict = predict(treeModel, testSet, type = "prob")
+par(mfrow=c(2,3))
+treeMultiRoc = multiclass.roc(testSet$cause_type, treePredict, percent = T, plot = T, print.auc = T)
+auc(treeMultiRoc)
+
+#Plot tree
+prp(treeModel$finalModel, box.palette = "Reds", tweak = 1.2)
+```
+
 ### Tree Bag
 
 Bagging (Bootstrap Aggregation) is used when our goal is to reduce the variance of a decision tree. Here idea is to create several subsets of data from training sample chosen randomly with replacement. Now, each collection of subset data is used to train their decision trees.
 
+```{r tb_model, eval=FALSE, echo=T, include=FALSE}
+tbModel <- train(cause_type ~ ., data = trainSet, method = "treebag", trControl = ctrl)
+```
+
+
+Escrever os resultados
+
+```{r tb_results, echo=F}
+load("models/tbModel.RData")
+tbModel
+```
+
+Confusion matrix:
+
+```{r tb_confusion_matrix, echo=F}
+confusionMatrix(tbModel)
+```
+
+Performance: 
+
+```{r tb_performance, echo=F}
+# Make predictions
+tbPredict = predict(tbModel, testSet, type = "prob")
+par(mfrow=c(2,3))
+tbMultiRoc = multiclass.roc(testSet$cause_type, tbPredict, percent = T, plot = T, print.auc = T)
+auc(tbMultiRoc)
+```
 ## Optimization Approaches
 
 ### Neural Networks
 A neural network is an adaptive system that learns using interconnected nodes or neurons in a layered structure that resembles the human brain. A neural network can learn from the data - so it can be trained to recognize patterns, classify data and predict future events.
 
 A neural network divides the input into layers of abstraction. He can be trained using many examples to recognize patterns in speech or images, for example, just like the human brain does. Their behavior is defined by the way their individual elements are connected and the strength, or weights, of those connections. These weights are automatically adjusted during training according to a specified learning rule until the artificial neural network performs the desired task correctly.
+
+```{r nn_model, eval=FALSE, echo=T, include=FALSE}
+nnModel <- train(cause_type ~ ., data = trainSet, method = "nnet", trControl = ctrl)
+```
+
+The results for Logistic Regression were:
+
+```{r nn_results, echo=F}
+load("models/nnModel.RData")
+nnModel
+```
+
+Confusion matrix: 
+
+```{r nn_cm, echo=F}
+confusionMatrix(nnModel)
+```
+
+Performance: 
+
+```{r nn_performance, echo=F}
+#Make predictions
+#nnPredict = predict(nnModel, testSet)
+# Model accuracy
+#mean(knnPredict == testSet$cause_type)
+
+# Make predictions
+nnPredict = predict(nnModel, testSet, type = "prob")
+
+par(mfrow=c(2,3))
+nnMultiRoc = multiclass.roc(testSet$cause_type, nnPredict, percent = T, plot = T, print.auc = T)
+auc(nnMultiRoc)
+```
 
 ### SVM
 It is used for both classification and prediction tasks. It consists of separating classes that can be separated by a straight line, called linearly separated classes. The model tries to trace the separation based on the best distance between the closest points. There are variations of SVM, such as the Kernell trick, which allows applying SVM to a set of nonlinearly separable data. Support vector machines for binary or multiclass classification.
@@ -847,13 +1002,99 @@ It is used for both classification and prediction tasks. It consists of separati
 
 It is an extremely fast machine learning algorithm for solving multiclass classification problems from ultra large data sets that implements a cutting plane algorithm for designing a linear support vector machine.
 
+```{r svm_lin_model, eval=FALSE, include=FALSE}
+svmLinModel <- train(cause_type ~ ., data = trainSet, method = "svmLinear2", trControl = ctrl)
+```
+
+
+Escrever os resultados
+
+```{r svm_lin_results, echo=F}
+load("models/svmLinModel.RData")
+svmLinModel
+```
+
+Confusion matrix:
+
+```{r svm_lin_confusion_matrix, echo=F}
+confusionMatrix(svmLinModel)
+```
+
+Performance: 
+
+```{r svm_lin_performance, echo=F}
+# Make predictions
+svmLinPredict = predict(svmLinModel, testSet, type = "prob")
+par(mfrow=c(2,3))
+svmLinMultiRoc = multiclass.roc(testSet$cause_type, svmLinPredict, percent = T, plot = T, print.auc = T)
+auc(svmLinMultiRoc)
+```
+
 ### Radial {-}
 
 Radial kernel support vector machine is a good approch when the data is not linearly separable.The idea behind generating non linear decision boundaries is that we need to do some non linear transformations on the features which transforms them to a higher dimention space.We do this non linear transformation using the Kernel trick.
 
+```{r svm_rad_model, eval=FALSE, include=FALSE}
+svmRadModel <- train(cause_type ~ ., data = trainSet, method = "svmRadial", trControl = ctrl)
+#save(svmRadModel, file = "models/svmRadModel.RData")
+```
+
+
+Escrever os resultados
+
+```{r svm_rad_results, echo=F}
+load("models/svmRadModel.RData")
+svmRadModel
+```
+
+Confusion matrix:
+
+```{r svm_rad_confusion_matrix, echo=F}
+confusionMatrix(svmRadModel)
+```
+
+Performance:
+
+```{r svm_rad_performance, echo=F}
+# Make predictions
+svmRadPredict = predict(svmRadModel, testSet, type = "prob")
+par(mfrow=c(2,3))
+svmRadMultiRoc = multiclass.roc(testSet$cause_type, svmRadPredict, percent = T, plot = T, print.auc = T)
+auc(svmRadMultiRoc)
+```
+
 ### Polinomial {-}
 
 The polynomial kernel is a kernel function commonly used with support vector machines (SVMs) and other kernelized models, that represents the similarity of training samples in a feature space over polynomials of the original variables, allowing learning of non-linear models. Intuitively, the polynomial kernel looks not only at the given features of input samples to determine their similarity, but also combinations of these. In the context of regression analysis, such combinations are known as interaction features.
+
+```{r svm_pol_model, eval=FALSE, include=FALSE}
+svmPolModel <- train(cause_type ~ ., data = trainSet, method = "svmPoly", trControl = ctrl)
+#save(svmPolModel, file = "models/svmPolModel.RData")
+```
+
+
+Escrever os resultados
+
+```{r svm_pol_results, echo=F}
+load("models/svmPolModel.RData")
+svmPolModel
+```
+
+Confusion matrix:
+
+```{r svm_pol_confusion_matrix, echo=F}
+confusionMatrix(svmPolModel)
+```
+
+Performance: 
+
+```{r svm_pol_performance, echo=F}
+# Make predictions
+svmPolPredict = predict(svmPolModel, testSet, type = "prob")
+par(mfrow=c(2,3))
+svmPolMultiRoc = multiclass.roc(testSet$cause_type, svmPolPredict, percent = T, plot = T, print.auc = T)
+auc(svmPolMultiRoc)
+```
 
 ## Ensemble Approaches
 
@@ -862,9 +1103,160 @@ The ensemble methods use multiple learning algorithms to obtain better predictiv
 ### Random Forests
 Random forest is a supervised learning algorithm which is used mainly used for classification problems.  This algorithm creates decision trees on data samples and then gets the prediction from each of them and finally selects the best solution by means of voting. It gets a random sample with replacement from the training set, select some features at random and reduce dimensionality of the set, accordingly and train a tree model without pruning. It predicts the class obtained by majority vote averaging the output of each tree.
 
+```{r rf_model, eval=FALSE, include=FALSE}
+rfModel <- train(cause_type ~ ., data = trainSet, method = "rf", trControl = ctrl)
+#save(rfModel, file = "models/rfModel.RData")
+```
+
+
+Escrever os resultados
+
+```{r rf_results, echo=F}
+load("models/rfModel.RData")
+rfModel
+```
+
+Confusion matrix:
+
+```{r rf_confusion_matrix, echo=F}
+confusionMatrix(rfModel)
+```
+
+Performance: 
+
+```{r rf_performance, echo=F}
+# Make predictions
+rfPredict = predict(rfModel, testSet, type = "prob")
+par(mfrow=c(2,3))
+rfMultiRoc = multiclass.roc(testSet$cause_type, rfPredict, percent = T, plot = T, print.auc = T)
+auc(rfMultiRoc)
+```
+
 ### XGBoost
 
-# Conclusions, Shortcomings and Future Work
+```{r xgb_model, eval=FALSE, include=FALSE}
+xgbModel <- train(cause_type ~ ., data = trainSet, method = "xgbTree", trControl = ctrl)
+#save(xgbModel, file = "models/xgbModel.RData")
+```
+
+Escrever os resultados
+
+```{r xgb_results, echo=F}
+load("models/xgbModel.RData")
+xgbModel
+```
+
+Confusion matrix:
+
+```{r xgb_confusion_matrix, echo=F}
+confusionMatrix(xgbModel)
+```
+
+Performance: 
+
+```{r xgb_performance, echo=F}
+# Make predictions
+xgbPredict = predict(xgbModel, testSet, type = "prob")
+par(mfrow=c(2,3))
+xgbMultiRoc = multiclass.roc(testSet$cause_type, xgbPredict, percent = T, plot = T, print.auc = T)
+auc(xgbMultiRoc)
+```
+
+## Assess Models
+
+```{r eval=FALSE, include=FALSE}
+
+rs <- resamples(list("K-Nearest Neighbors" = knnModel,
+                     "Naive Bayes" = nbModel,
+                     "Logistic Regression" = lrModel,
+                     "Linear Discriminants" = ldaModel,
+                     "Penalized Discriminants" = pdaModel,
+                     "Decision Tree" = treeModel, 
+                     "Tree Bag" = tbModel,
+                     "Neural Networks" = nnModel,
+                     "SVM (Linear)" = svmLinModel,
+                     "SVM (Poly)" = svmPolModel,
+                     "SVM (Radial)" = svmRadModel,
+                     "Random Forest" = rfModel, 
+                     "XGBoost" = xgbModel)) 
+                     
+summary(rs)
+
+library(DALEX)
+
+predictors = testSet[,-11]
+outcome = testSet$cause_type
+
+explainer_knn <- explain(rfModel, predictors, outcome, label = "K-Nearest Neighbors")
+explainer_nb  <- explain(nbModel, predictors, outcome, label = "Naive Bayes")
+explainer_lr <- explain(lrModel, predictors, outcome, label = "Logistic Regression")
+explainer_lda <- explain(ldaModel, predictors, outcome, label = "Linear Discriminants")
+explainer_pda <- explain(pdaModel, predictors, outcome, label = "Penalized Discriminants")
+explainer_tree <- explain(treeModel, predictors, outcome, label = "Decision Tree")
+explainer_tb <- explain(tbModel, predictors, outcome, label = "Tree Bag")
+explainer_nn <- explain(nnModel, predictors, outcome, label = "Neural Networks")
+explainer_svmLin <- explain(svmLinModel, predictors, outcome, label = "SVM Linear")
+explainer_svmPol <- explain(svmPolModel, predictors, outcome, label = "SVM Polynomyal")
+explainer_svmRad <- explain(svmRadModel, predictors, outcome, label = "SVM Radial")
+explainer_rf <- explain(rfModel, predictors, outcome, label = "Random Forest")
+explainer_xgb <- explain(xgbModel, predictors, outcome, label = "XGBoost")
+
+eva_knn = model_performance(explainer_knn)
+eva_nb = model_performance(explainer_nb)
+eva_lr = model_performance(explainer_lr)
+eva_lda = model_performance(explainer_lda)
+eva_pda = model_performance(explainer_pda)
+eva_tree = model_performance(explainer_tree)
+eva_tb = model_performance(explainer_tb)
+eva_nn = model_performance(explainer_nn)
+eva_svmLin = model_performance(explainer_svmLin)
+eva_svmPol = model_performance(explainer_svmPol)
+eva_svmRad = model_performance(explainer_svmRad)
+eva_rf = model_performance(explainer_rf)
+eva_xgb = model_performance(explainer_xgb)
+
+models = c("K-Nearest Neighbors", 
+           "Naive Bayes",
+           "Logistic Regression", 
+           "Linear Discriminants", 
+           "Penalized Discriminants", 
+           "Decision Tree",
+           "Tree Bag",
+           "Neural Networks",
+           "SVM Linear",
+           "SVM Polynomyal",
+           "SVM Radial",
+           "Random Forest",
+           "XGBoost")
+
+accuracys = c(round(eva_knn$measures$accuracy*100,2),
+              round(eva_nb$measures$accuracy*100,2),
+              round(eva_lr$measures$accuracy*100,2),
+              round(eva_lda$measures$accuracy*100,2),
+              round(eva_pda$measures$accuracy*100,2),
+              round(eva_tree$measures$accuracy*100,2),
+              round(eva_tb$measures$accuracy*100,2),
+              round(eva_nn$measures$accuracy*100,2),
+              round(eva_svmLin$measures$accuracy*100,2),
+              round(eva_svmPol$measures$accuracy*100,2),
+              round(eva_svmRad$measures$accuracy*100,2),
+              round(eva_rf$measures$accuracy*100,2),
+              round(eva_xgb$measures$accuracy*100,2))
+
+models_acc = data.frame(model=models, accuracy=accuracys)
+
+ggplot(models_acc, aes(x=reorder(model, accuracy), y=accuracy, color=accuracy)) + 
+  geom_bar(stat="identity", color='skyblue',fill='steelblue', width = 0.7) +
+  geom_text(aes(label=accuracy), vjust=0.4, hjust=1.5, color="white", size=3.5) +
+  xlab("Model") + ylab("Accuracy") +
+  ggtitle("Rank of Model Performance by Accuracy (%)") +
+  theme_minimal() + 
+  coord_flip()
+
+plot(eva_knn, eva_nb, eva_lr, eva_lda, eva_pda, eva_tree, eva_tb, eva_nn, eva_svmLin, eva_svmPol, eva_svmRad, eva_rf, eva_xgb, geom = "boxplot", lossFunction = loss_accuracy()) 
+```
+
+# Conclusions
 
 # References
 
