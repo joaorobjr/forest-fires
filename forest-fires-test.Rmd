@@ -73,7 +73,7 @@ require(ggplot2)
 require(devtools)
 require(caret)
 require(rpart.plot)
-require(kableExtra)
+require(pROC)
 # turns off scientific notation; to turn it back on, use scipen= 0
 options(scipen= 999)
 ```
@@ -690,15 +690,71 @@ predictors(rfProfile)
 
 Predictive modeling is a technique that uses mathematical and computational methods to predict an event or result. The model is used to predict a result in some future state or moment based on changes in model inputs. The model parameters help to explain how the model inputs influence the result. 
 
+## `Caret` Package
+
+The R `caret` allows us to create several powerful predictive models using a simplified and consistent modeling syntax. There are more than 200 different models available in `caret` which allows us with very little change to set up the resampling approach and the parameter tuning. Behind the scenes, `caret` automatically resamples the models and conducts parameter tuning. This way it is possible to build and compare models with very little overhead.
+
+The `train()` function from `caret` was used to modeling all the predictive models needs for this studied. Besides one, the function `trainControl()` which allows to set up several aspects of the model, like the resampling method, it was defined withe `method=cv` and `number=10` what means that was used the 10-fold cross-validation for all the predictive models created.
+
+```{r train_control, echo=T}
+ctrl <- trainControl(method = "cv", number = 10, savePredictions = "final", classProbs = T)
+```
+
+### Data Splitting
+
+As a result of the data preparation and preprocessing, the forest fires dataset final has now 7502  observations. In order to build the predictive models, it was split into training and test sets where the first one containing 70% of the data, or precisely 5253 observations, and the second one containing 30% of the data corresponding to 2249 observations. The training of models was performed using the training set and the test set was used to assess the performance of them.
+
+```{r split_data, echo=F}
+set.seed(123456)
+idx = createDataPartition(ffires$cause_type, p = 0.7, list = FALSE)
+trainSet = ffires[ idx,] 
+testSet = ffires[-idx,]
+rm(idx)
+```
 
 ## Distance-based Approach
 
-This study proposes a distance‐based method: the characteristic objects method. In this approach, the preferences of each alternative are obtained on the basis of the distance from the nearest characteristic objects and their values.
+Distance-based algorithms are machine learning algorithms that classify queries by computing distances between these queries and a number of internally stored exemplars. Exemplars that are closest to the query have the largest in uence on the classification assigned to the query. Two speci c distance-based algorithms, the nearest neighbor algorithm and the nearest-hyperrectangle algorithm, are studied in detail. It is shown that the k-nearest neighbor algorithm (kNN)
+
+(Citeable URL: https://ir.library.oregonstate.edu/concern/graduate_thesis_or_dissertations/zw12z7835)
+
 
 ### K-Nearest Neighbor
 
 Distance-based algorithms are machine learning algorithms that classify queries by computing distances between these queries and a number of internally stored exemplars. Exemplars that are closest to the query have the largest influence on the classification assigned to the query. The distance-based algorithm used in this study was the k-nearest neighbor algorithm (kNN).
 
+```{r knn_model, eval=FALSE, echo=T, include=FALSE}
+knnModel <- train(cause_type ~ ., data = trainSet, method = "kknn", trControl = ctrl)
+```
+
+The results for KNN were:
+
+```{r knn_results, echo=F}
+load("models/knnModel.RData")
+knnModel
+```
+
+Confusion matrix: 
+
+```{r knn_cm, echo=F}
+confusionMatrix(knnModel)
+```
+
+Performance: 
+
+```{r knn_performance, echo=F}
+#Make predictions
+knnPredict = predict(knnModel, testSet)
+# Model accuracy
+#mean(knnPredict == testSet$cause_type)
+
+# Make predictions
+knnPredict = predict(knnModel, testSet, type = "prob")
+
+par(mfrow=c(4,3))
+knnMultiRoc = multiclass.roc(testSet$cause_type, knnPredict, percent = T, plot = T, print.auc = T)
+auc(knnMultiRoc)
+```
 
 ## Probabilistic Approach
 Discriminant analysis is used to predict the probability of belonging to a given class (or category) based on one or multiple predictor variables. It works with continuous and/or categorical predictor variables.
@@ -710,6 +766,38 @@ According to Bayes' theorem, it is possible to find the probability that a certa
 
 ### Logistic Regression
 
+```{r lr_model, eval=FALSE, echo=T, include=FALSE}
+lrModel <- train(cause_type ~ ., data = trainSet, method = "multinom", trControl = ctrl,)
+```
+
+The results for Logistic Regression were:
+
+```{r lr_results, echo=F}
+load("models/lrModel.RData")
+lrModel
+```
+
+Confusion matrix: 
+
+```{r lr_cm, echo=F}
+confusionMatrix(lrModel)
+```
+
+Performance: 
+
+```{r lr_performance, echo=F}
+#Make predictions
+lrPredict = predict(lrModel, testSet)
+# Model accuracy
+#mean(knnPredict == testSet$cause_type)
+
+# Make predictions
+lrPredict = predict(lrModel, testSet, type = "prob")
+
+par(mfrow=c(4,3))
+lrMultiRoc = multiclass.roc(testSet$cause_type, lrPredict, percent = T, plot = T, print.auc = T)
+auc(lrMultiRoc)
+```
 
 ## Mathematical Formulas
 
