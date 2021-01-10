@@ -721,6 +721,7 @@ Distance-based algorithms are machine learning algorithms that classify queries 
 
 ### K-Nearest Neighbor
 
+It is an instance-based learning algorithm: it learns by analogy that is, they are based on the notion of similarity between cases. The K-nearest neighbors (KNN) algorithm uses 'resource similarity' to predict the values of new data points, which further means that the new data point will receive a value based on how close it corresponds to the points in the training set.
 
 
 ```{r knn_model, eval=FALSE, echo=T, include=FALSE}
@@ -765,6 +766,34 @@ Compared to logistic regression, the discriminant analysis is more suitable for 
 ### Naive Bayes
 According to Bayes' theorem, it is possible to find the probability that a certain event will occur, given the probability of another event that has already occurred. Naive Bayes is a particular class of Bayesian classifiers that predicts the probability that a case belongs to a certain class. Due to its simplicity and high predictive power, it is one of the most used algorithms. This algorithm assumes that there is no dependency relationship between the attributes. However, this is not always possible. The algorithm reads the database and builds a probability table.In Bayesian classification, the main interest is to find the posterior probabilities, the probability of a label given some observed features.
 
+```{r nb_model, eval=FALSE, echo=T, include=T}
+nbModel <- train(cause_type ~ ., data = trainSet, method = "naive_bayes", trControl = ctrl)
+```
+
+The package caret was used to create this model with the method "naive_bayes".
+The tunning parameters used for the model were laplace = 0, usekernel = TRUE and adjust = 1 and the accuracy reached 56.06%.
+
+```{r nb_results, echo=F}
+load("models/nbModel.RData")
+nbModel
+```
+
+Confusion matrix:
+
+```{r nb_confusion_matrix, echo=F}
+confusionMatrix(nbModel)
+```
+
+Performance: 
+
+```{r nb_performance, echo=F}
+# Make predictions
+nbPredict = predict(nbModel, testSet, type = "prob")
+par(mfrow=c(2,3))
+nbMultiRoc = multiclass.roc(testSet$cause_type, nbPredict, percent = T, plot = T, print.auc = T)
+auc(nbMultiRoc)
+```
+
 ### Logistic Regression
 
 ```{r lr_model, eval=FALSE, echo=T, include=FALSE}
@@ -772,7 +801,7 @@ lrModel <- train(cause_type ~ ., data = trainSet, method = "multinom", trControl
 ```
 
 The package caret was used to create this model with the method "multinom".
-The accuracy reached 62.74%.
+The tunning parameter used for the model was decay = 0.1 and the accuracy reached 62.74%.
 
 ```{r lr_results, echo=F}
 load("models/lrModel.RData")
@@ -820,7 +849,8 @@ The linear discriminant analysis can be easily computed using the function lda()
 ldaModel <- train(cause_type ~ ., data = trainSet, method = "lda", trControl = ctrl)
 ```
 
-The results for Logistic Regression were:
+The package caret was used to create this model with the method "lda".
+The accuracy reached 61.98%.
 
 ```{r lda_results, echo=F}
 load("models/ldaModel.RData")
@@ -864,7 +894,8 @@ pdaModel <- train(cause_type ~ ., data = trainSet, method = "pda", trControl = c
 ```
 
 
-Escrever os resultados
+The package caret was used to create this model with the method "pda".
+The tunning parameter used for the model lambda = 0.1 and the accuracy reached 62.04%.
 
 ```{r pda_results, echo=F}
 load("models/pdaModel.RData")
@@ -898,7 +929,8 @@ treeModel <- train(cause_type ~ ., data = trainSet, method = "rpart", trControl 
 ```
 
 
-Escrever os resultados
+The package caret was used to create this model with the method "rpart".
+The final value used for the model was cp = 0.006843456. and the accuracy reached 61.49%.
 
 ```{r tree_results, echo=F}
 load("models/treeModel.RData")
@@ -933,7 +965,8 @@ tbModel <- train(cause_type ~ ., data = trainSet, method = "treebag", trControl 
 ```
 
 
-Escrever os resultados
+The package caret was used to create this model with the method "treebag".
+The accuracy reached 61.47%.
 
 ```{r tb_results, echo=F}
 load("models/tbModel.RData")
@@ -966,7 +999,8 @@ A neural network divides the input into layers of abstraction. He can be trained
 nnModel <- train(cause_type ~ ., data = trainSet, method = "nnet", trControl = ctrl)
 ```
 
-The results for Logistic Regression were:
+The package caret was used to create this model with the method "nnet".
+The tunning parameters used for the model were size = 3 and decay = 0.1. and the accuracy reached was 60.69%.
 
 ```{r nn_results, echo=F}
 load("models/nnModel.RData")
@@ -1007,7 +1041,8 @@ svmLinModel <- train(cause_type ~ ., data = trainSet, method = "svmLinear2", trC
 ```
 
 
-Escrever os resultados
+The package caret was used to create this model with the method "svmLinear2".
+The tunning parameter used for the model was cost = 1 and the accuracy reached was 60.92%.
 
 ```{r svm_lin_results, echo=F}
 load("models/svmLinModel.RData")
@@ -1040,7 +1075,8 @@ svmRadModel <- train(cause_type ~ ., data = trainSet, method = "svmRadial", trCo
 ```
 
 
-Escrever os resultados
+The package caret was used to create this model with the method "svmRadial".
+The tunning parameters used for the model were sigma = 0.01788098 and C = 0.5. and the accuracy reached was 58.16%.
 
 ```{r svm_rad_results, echo=F}
 load("models/svmRadModel.RData")
@@ -1073,7 +1109,8 @@ svmPolModel <- train(cause_type ~ ., data = trainSet, method = "svmPoly", trCont
 ```
 
 
-Escrever os resultados
+The package caret was used to create this model with the method "svmPoly".
+The tunning parameters used for the model were degree = 3, scale = 0.01 and C = 0.25 and the accuracy reached was 56.18%.
 
 ```{r svm_pol_results, echo=F}
 load("models/svmPolModel.RData")
@@ -1109,7 +1146,9 @@ rfModel <- train(cause_type ~ ., data = trainSet, method = "rf", trControl = ctr
 ```
 
 
-Escrever os resultados
+The package caret was used to create this model with the method "rf".
+The final value used for the model was mtry = 22 and the accuracy reached was 63.30%.
+
 
 ```{r rf_results, echo=F}
 load("models/rfModel.RData")
@@ -1134,12 +1173,15 @@ auc(rfMultiRoc)
 
 ### XGBoost
 
+XGBoost is an optimized distributed gradient boosting system designed to be highly efficient, flexible and portable. It implements machine learning algorithms under the Gradient Boosting framework. XGBoost provides a parallel tree boosting(also known as GBDT, GBM).
+
 ```{r xgb_model, eval=FALSE, include=FALSE}
 xgbModel <- train(cause_type ~ ., data = trainSet, method = "xgbTree", trControl = ctrl)
 #save(xgbModel, file = "models/xgbModel.RData")
 ```
 
-Escrever os resultados
+The package caret was used to create this model with the method "xgbTree".
+The tunning parameter used for the model was  gamma = 0 and the accuracy reached was 64.95%.
 
 ```{r xgb_results, echo=F}
 load("models/xgbModel.RData")
