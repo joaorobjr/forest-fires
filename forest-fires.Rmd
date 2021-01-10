@@ -67,6 +67,7 @@ require(devtools)
 require(caret)
 require(rpart.plot)
 require(pROC)
+library(DALEX)
 # turns off scientific notation; to turn it back on, use scipen= 0
 options(scipen= 999)
 ```
@@ -1033,29 +1034,34 @@ auc(xgbMultiRoc)
 ```
 
 
+## Models Evaluations
 
-## Assess Models
+The predictive models performed previous were evalutated based on the accuracy measurement that calculate the proportion of the total number of predictions that were correct. In order to evaluate the performace of models it was used the `DALEX` R package.
 
-```{r}
+DALEX contains a set of tools that help to provide *D*escriptive m*A*chine Learning *EX*planations ranging from global to local interpretability methods. In particular, it makes comparing performance across multiple models convenient.
 
-rs <- resamples(list("K-Nearest Neighbors" = knnModel,
-                     "Naive Bayes" = nbModel,
-                     "Logistic Regression" = lrModel,
-                     "Linear Discriminants" = ldaModel,
-                     "Penalized Discriminants" = pdaModel,
-                     "Decision Tree" = treeModel, 
-                     "Tree Bag" = tbModel,
-                     "Neural Networks" = nnModel,
-                     "SVM (Linear)" = svmLinModel,
-                     "SVM (Poly)" = svmPolModel,
-                     "SVM (Radial)" = svmRadModel,
-                     "Random Forest" = rfModel, 
-                     "XGBoost" = xgbModel)) 
+Below can be a rank of the model performance by accuracy:
+
+```{r resample_models, eval=FALSE, include=FALSE}
+rs <- resamples(list("KNN" = knnModel,
+                     "NB" = nbModel,
+                     "LR" = lrModel,
+                     "LDA" = ldaModel,
+                     "PDA" = pdaModel,
+                     "DTree" = treeModel, 
+                     "TBag" = tbModel,
+                     "NN" = nnModel,
+                     "SVM(Lin)" = svmLinModel,
+                     "SVM(Pol)" = svmPolModel,
+                     "SVM(Rad)" = svmRadModel,
+                     "RF" = rfModel, 
+                     "XGB" = xgbModel)) 
                      
 summary(rs)
+```
 
-library(DALEX)
 
+```{r eval_models, eval=FALSE, include=FALSE}
 predictors = testSet[,-11]
 outcome = testSet$cause_type
 
@@ -1086,6 +1092,24 @@ eva_svmPol = model_performance(explainer_svmPol)
 eva_svmRad = model_performance(explainer_svmRad)
 eva_rf = model_performance(explainer_rf)
 eva_xgb = model_performance(explainer_xgb)
+```
+
+
+```{r plot_eval_models, echo=F}
+load("results/eva_knn.RData")
+load("results/eva_nb.RData")
+load("results/eva_lr.RData")
+load("results/eva_lda.RData")
+load("results/eva_pda.RData")
+load("results/eva_tree.RData")
+load("results/eva_tb.RData")
+load("results/eva_nn.RData")
+load("results/eva_svmLin.RData")
+load("results/eva_svmPol.RData")
+load("results/eva_svmRad.RData")
+load("results/eva_rf.RData")
+load("results/eva_xgb.RData")
+
 
 models = c("K-Nearest Neighbors", 
            "Naive Bayes",
@@ -1125,9 +1149,8 @@ ggplot(models_acc, aes(x=reorder(model, accuracy), y=accuracy, color=accuracy)) 
   theme_minimal() + 
   coord_flip()
 
-plot(eva_knn, eva_nb, eva_lr, eva_lda, eva_pda, eva_tree, eva_tb, eva_nn, eva_svmLin, eva_svmPol, eva_svmRad, eva_rf, eva_xgb, geom = "boxplot", lossFunction = loss_accuracy()) 
+#plot(eva_knn, eva_nb, eva_lr, eva_lda, eva_pda, eva_tree, eva_tb, eva_nn, eva_svmLin, eva_svmPol, eva_svmRad, eva_rf, eva_xgb, geom = "boxplot", lossFunction = loss_accuracy())
 ```
-
 
 # Conclusions
 

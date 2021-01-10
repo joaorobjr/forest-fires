@@ -330,16 +330,16 @@ ctrl <- trainControl(method = "cv", number = 10, savePredictions = "final", clas
 # KNN ----
 knnModel <- train(cause_type ~ ., data = trainSet, method = "kknn", trControl = ctrl)
 #save(knnModel, file = "models/knnModel.RData")
-#load("models/knnModel.RData")
+load("models/knnModel.RData")
 knnModel
 knnModel$pred
-knnModel$results
+knnModel$results$
 knnModel$bestTune
 final = knnModel$finalModel
 
 final$best.parameters
 cm=confusionMatrix(knnModel)
-cm$table
+
 
 # Make predictions
 knnPredict = predict(knnModel, testSet, type = "prob")
@@ -363,7 +363,8 @@ par(mfrow=c(4,3))
 
 multiclass.roc(testSet$cause_type, knnPredict, percent = T, plot = T, print.auc = T)
 
-auc(knnRoc)
+auc=auc(knnRoc)
+
 
 names(knnRoc$rocs)
 rs <- knnRoc[['rocs']]
@@ -397,7 +398,7 @@ mean(nbPredict == testSet$cause_type)
 # Logist Regression (Multinominal) ----
 lrModel <- train(cause_type ~ ., data = trainSet, method = "multinom", trControl = ctrl,)
 #save(lrModel, file = "models/lrModel.RData")
-#load("models/lrModel.RData")
+load("models/lrModel.RData")
 lrModel
 lrModel$pred
 lrModel$results
@@ -415,7 +416,7 @@ mean(lrPredict == testSet$cause_type)
 # Linear Discriminants ----
 ldaModel <- train(cause_type ~ ., data = trainSet, method = "lda", trControl = ctrl)
 #save(ldaModel, file = "models/ldaModel.RData")
-#load("models/ldaModel.RData")
+load("models/ldaModel.RData")
 ldaModel
 ldaModel$pred
 ldaModel$results
@@ -431,7 +432,7 @@ mean(ldaPredict == testSet$cause_type)
 # Linear Discriminants (Penalized Discriminant Analysis) ----
 pdaModel <- train(cause_type ~ ., data = trainSet, method = "pda", trControl = ctrl)
 #save(pdaModel, file = "models/pdaModel.RData")
-#load("models/pdaModel.RData")
+load("models/pdaModel.RData")
 pdaModel
 pdaModel$pred
 pdaModel$results
@@ -449,7 +450,7 @@ mean(pdaPredict == testSet$cause_type)
 # Decision Tree ----
 treeModel <- train(cause_type ~ ., data = trainSet, method = "rpart", trControl = ctrl)
 #save(treeModel, file = "models/treeModel.RData")
-#load("models/treeModel.RData")
+load("models/treeModel.RData")
 treeModel
 treeModel$pred
 treeModel$results
@@ -467,7 +468,7 @@ mean(treePredict == testSet$cause_type)
 # Tree Bag ----  
 tbModel <- train(cause_type ~ ., data = trainSet, method = "treebag", trControl = ctrl)
 #save(tbModel, file = "models/tbModel.RData")
-#load("models/tbModel.RData")
+load("models/tbModel.RData")
 tbModel
 tbModel$pred
 tbModel$results
@@ -485,7 +486,7 @@ mean(tbPredict == testSet$cause_type)
 # Neural Networks ----
 nnModel <- train(cause_type ~ ., data = trainSet, method = "nnet", trControl = ctrl)
 #save(nnModel, file = "models/nnModel.RData")
-#load("models/nnModel.RData")
+load("models/nnModel.RData")
 nnModel
 nnModel$pred
 nnModel$results
@@ -501,7 +502,7 @@ mean(nnPredict == testSet$cause_type)
 # SVM Linear ----
 svmLinModel <- train(cause_type ~ ., data = trainSet, method = "svmLinear2", trControl = ctrl)
 #save(svmLinModel, file = "models/svmLinModel.RData")
-#load("models/smvLinModel.RData")
+load("models/svmLinModel.RData")
 svmLinModel
 svmLinModel$pred
 svmLinModel$results
@@ -517,7 +518,7 @@ mean(svmLinPredict == testSet$cause_type)
 # SVM Poly ----
 svmPolModel <- train(cause_type ~ ., data = trainSet, method = "svmPoly", trControl = ctrl)
 #save(svmPolModel, file = "models/svmPolModel.RData")
-#load("models/smvPolModel.RData")
+load("models/svmPolModel.RData")
 svmPolModel
 svmPolModel$pred
 svmPolModel$results
@@ -533,7 +534,7 @@ mean(svmPolPredict == testSet$cause_type)
 # SVM Radial ----
 svmRadModel <- train(cause_type ~ ., data = trainSet, method = "svmRadial", trControl = ctrl)
 #save(svmRadModel, file = "models/svmRadModel.RData")
-#load("models/smvRadModel.RData")
+load("models/svmRadModel.RData")
 svmRadModel
 svmRadModel$pred
 svmRadModel$results
@@ -551,7 +552,7 @@ mean(svmRadPredict == testSet$cause_type)
 # Random Forest ----
 rfModel <- train(cause_type ~ ., data = trainSet, method = "rf", trControl = ctrl)
 #save(rfModel, file = "models/rfModel.RData")
-#load("models/rfModel.RData")
+load("models/rfModel.RData")
 rfModel$
 rfModel$pred
 rfModel$results
@@ -598,7 +599,9 @@ rs <- resamples(list("K-Nearest Neighbors" = knnModel,
                      "SVM (Radial)" = svmRadModel,
                      "Random Forest" = rfModel, 
                      "XGBoost" = xgbModel)) 
-                     
+
+rs$timings$
+                 
 summary(rs)
 
 library(DALEX)
@@ -620,6 +623,20 @@ explainer_svmRad <- explain(svmRadModel, predictors, outcome, label = "SVM Radia
 explainer_rf <- explain(rfModel, predictors, outcome, label = "Random Forest")
 explainer_xgb <- explain(xgbModel, predictors, outcome, label = "XGBoost")
 
+save(explainer_knn, file="results/explainer_knn.RData")
+save(explainer_nb, file="results/explainer_nb.RData")
+save(explainer_lr, file="results/explainer_lr.RData")
+save(explainer_lda, file="results/explainer_lda.RData")
+save(explainer_pda, file="results/explainer_pda.RData")
+save(explainer_tree, file="results/explainer_tree.RData")
+save(explainer_tb, file="results/explainer_tb.RData")
+save(explainer_nn, file="results/explainer_nn.RData")
+save(explainer_svmLin, file="results/explainer_svmLin.RData")
+save(explainer_svmPol, file="results/explainer_svmPol.RData")
+save(explainer_svmRad, file="results/explainer_svmRad.RData")
+save(explainer_rf, file="results/explainer_rf.RData")
+save(explainer_xgb, file="results/explainer_xgb.RData")
+
 eva_knn = model_performance(explainer_knn)
 eva_nb = model_performance(explainer_nb)
 eva_lr = model_performance(explainer_lr)
@@ -633,6 +650,41 @@ eva_svmPol = model_performance(explainer_svmPol)
 eva_svmRad = model_performance(explainer_svmRad)
 eva_rf = model_performance(explainer_rf)
 eva_xgb = model_performance(explainer_xgb)
+
+
+load("results/eva_xgb.RData")
+
+eva_xgb$measures
+
+save(eva_knn, file="results/eva_knn.RData")
+save(eva_nb, file="results/eva_nb.RData")
+save(eva_lr, file="results/eva_lr.RData")
+save(eva_lda, file="results/eva_lda.RData")
+save(eva_pda, file="results/eva_pda.RData")
+save(eva_tree, file="results/eva_tree.RData")
+save(eva_tb, file="results/eva_tb.RData")
+save(eva_nn, file="results/eva_nn.RData")
+save(eva_svmLin, file="results/eva_svmLin.RData")
+save(eva_svmPol, file="results/eva_svmPol.RData")
+save(eva_svmRad, file="results/eva_svmRad.RData")
+save(eva_rf, file="results/eva_rf.RData")
+save(eva_xgb, file="results/eva_xgb.RData")
+
+load("results/eva_knn.RData")
+load("results/eva_nb.RData")
+load("results/eva_lr.RData")
+load("results/eva_lda.RData")
+load("results/eva_pda.RData")
+load("results/eva_tree.RData")
+load("results/eva_tb.RData")
+load("results/eva_nn.RData")
+load("results/eva_svmLin.RData")
+load("results/eva_svmPol.RData")
+load("results/eva_svmRad.RData")
+load("results/eva_rf.RData")
+load("results/eva_xgb.RData")
+
+
 
 models = c("K-Nearest Neighbors", 
            "Naive Bayes",
@@ -784,8 +836,6 @@ plot.roc(knnRoc$response)
 roc$rocs
 auc(roc)
 roc$rocs
-
-
 
 
 
