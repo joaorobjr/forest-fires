@@ -1,0 +1,1344 @@
+---
+title: "Forest Fires in Portugal - What Are The Causes?"
+author: "By Robson Teixeira, Eduardo Rodrigues and Claudio Rocha"
+date: "M:CC -- FCUP, 10/01/2021"
+output:
+  bookdown::pdf_document2:
+    df_print: tibble
+    fig_caption: yes
+    fig_crop: no
+    fig_height: 5
+    fig_width: 7
+    number_sections: yes
+    toc: yes
+  bookdown::html_document2:
+    code_folding: hide
+    df_print: tibble
+    fig_caption: yes
+    includes:
+      in_header: header.html
+    number_sections: yes
+    theme: cerulean
+    toc: yes
+    toc_float: yes
+  html_notebook:
+    code_folding: hide
+    df_print: default
+    number_sections: yes
+    toc: yes
+    toc_float: yes
+subtitle: Practical Assignment of Data Mining I
+geometry:
+- top=25mm
+- bottom=25mm
+- left=25mm
+- right=20mm
+- heightrounded
+header-includes: \usepackage{caption} \usepackage{fancyhdr} \usepackage{lmodern} \usepackage[detect-all]{siunitx}
+highlight-style: pygments
+linkcolor: blue
+mainfont: Source Variable Pro
+fontsize: 12pt
+sansfont: Source Sans Pro
+documentclass: report
+urlcolor: blue
+references:
+- type: article-journal
+  id: geosciences10020053
+  title: Mapping the Causes of Forest Fires in Portugal by Clustering Analysis
+  author:
+  - family: Meira Castro
+    given: Ana C.
+  - family: Nunes
+    given: Adélia
+  - family: Sousa
+    given: António
+  - family: Lourenço
+    given: Luciano
+  publisher: Geosciences
+  issued:
+    year: 2020
+---
+
+---
+
+
+```{r setup, include= F}
+knitr::opts_chunk$set(echo= T, warning= F, message= F)
+require(tidyverse)
+require(funModeling)
+require(measurements)
+require(lubridate)
+require(ggplot2)
+require(devtools)
+require(caret)
+require(rpart.plot)
+require(pROC)
+# turns off scientific notation; to turn it back on, use scipen= 0
+options(scipen= 999)
+```
+
+
+
+
+# Introduction
+
+In this project, we try to find the best machine learning model that more accurately predicts whether a forest fire occurs negligently, intentionally, naturally or recurrently. From a database that was given to us, we divided the work into several parts.
+
+The remainder of this report is organized as follows: in chapter 2, we describe the importance of predicting forest fires that are a big problem actually; in chapter 3 is described the causes ofnthe ocurrences that is the variable that the model will be predict and a table with all the variables of  the original dataset; chapter 4 is dedicated to the exploration, cleaning and engineering of the data. Some graphics are plotted in this chapter and they help to visualize the origins and locations of the forest fires; the models used to test the dataset are described and compared in chapter 5; in chapter 6, We finalize with the main conclusions and the last chapter includes references.
+
+
+# Problem Definition
+
+Forest fires are a very important issue that negatively affects climate change. Typically, the causes of forest fires are those oversights, accidents and negligence committed by individuals, intentional acts and natural causes. The latter is the root cause for only a minority of the fires.
+
+Their harmful impacts and effects on ecosystems can be major ones. Among them, we can mention the disappearance of native species, the increase in levels of carbon dioxide in the atmosphere, earth’s nutrients destroyed by the ashes, and the massive loss of wildlife.
+
+Data mining techniques can help in the prediction of the cause of the fire and, thus, better support the decision of taking preventive measures in order to avoid tragedy. In effect, this can play a major role in resource allocation, mitigation and recovery efforts.
+
+# Forest Fire Dataset
+
+The Institute for Nature Conservation and Forests ([ICNF](http://www.icnf.pt/portal/florestas/dfci/estatisticas)) is the governmental body responsible for the nature and forest policies, including the management of protected areas and state managed national, municipal, and communal forests of mainland Portugal. The ICNF has been maintained a database with data of all forest fires that occurred in Portugal over several years. The data set used in this study is a subset extracted from this database regarding the fires that occurred over 2015. It consist of **7511** records of fires and for each one, there is relevant information such as the GPS coordinates (latitude and longitude) where occur the fire, the date and time of fire alert, the date and time of the first intervention, and the date and time of fire extinction, besides the origin of the ignition, the affected area, and the cause type. The table \@ref(tab:variables) describes all variables contained in `Forest Fires` data set:
+
+
+Table (\#tab:variables) List of variables in `Forest Fires` data set.
+
+Variable          |Type        |Description                   |
+------------------|------------|------------------------------|------
+id                |integer     |id number                     |
+region            |character   |region name                   |
+district          |character   |district name                 |
+municipality      |character   |municipality name             |
+parish            |character   |parish name                   |
+lat               |character   |latitude value                |
+lon               |character   |longitude value               |
+origin            |character   |how the fire started          |
+alert_date        |character   |date when fire started        |
+alert_hour        |character   |alert hour                    |
+extinction_date   |character   |date of the end of fire       |
+extinction hour   |character   |hour of the end of fire       |
+firstInterv_date  |character   |date of intervention          |
+firstInterv_hour  |character   |hour of intervention          |
+alert_source      |logical     |alert source                  |
+village_area      |numeric     |village area affected         |
+vegetation_area   |numeric     |vegetation area affected      |
+farming_area      |numeric     |farming area affected         |
+village_veget_area|numeric     |total village+veget affected  |
+total_area        |numeric     |total area affected           |
+cause_type        |character   |cause of the fire             | 
+
+A classification for causes types are presented in table \@ref(tab:causetype).
+
+Table: (\#tab:causetype) Classifications of causes of forest fires.
+
+Cause       |Description                                           
+------------|---------------------------------------------------------------------------------------------
+Unknown     | absence of suficient objective evidence to determine the cause of the ignition of fire
+Natural     | lightning generated in thunderstorms
+Negligence  | the misguided use of fire in activities such as burning trash, mass burning of agricultural and forest fuels, fun and leisure activities; failure to properly extinguish cigarettes by smokers; the dispersal and transport of incandescent particles from chimneys; etc.
+Intentional | incendiarism and arson, mostly resulting from behaviors and attitudes reacting to theconstraints of agroforestry management systems and to conflicts related to land use
+Rekindling  | reburning of an area over which a fire has previously passed, but where fuel has been left that is later ignited by latent heat, sparks, or embers
+
+
+```{r load_data, include=FALSE}
+ffires.raw.path = file("data/fires2015_train.csv")
+ffires.raw = as_tibble(read.csv(ffires.raw.path,
+                               stringsAsFactors = FALSE, 
+                               na.strings = c("-", "","NA"), 
+                               encoding = "UTF-8"))
+```
+
+A glimpse of the structure of the `Forest Fires` data set is provided below:
+
+Table: (#tab:glimpse-data) A glimpse of the structure of the data set.
+
+```{r glimpse-data, echo=F, error=F}
+glimpse(ffires.raw)
+
+```
+
+A summary for each variable present in dataset is provided below. The metrics displayed are: quantity and percentage of zeros, quantity and quantity and percentage of NA's, data type and quantity of unique values.
+
+
+Table 4: (\#tab:summary-data) A summary of variables of the dataset.
+
+```{r summary-data, echo=F}
+df_status(ffires.raw)
+```
+
+
+A sample the first observations is provided below:
+
+```{r head_data, echo=F}
+head(ffires.raw)
+```
+
+# Data Preparation
+
+Data preparation consists of the process of cleaning and transforming raw data in a form that can be used by machine learning algorithms. Next sections, we exploit the `Forest Fires` dataset in order to perform the steps of cleaning a transforming, when need.
+
+## Data Cleaning {#data-cleaning}
+
+### Latitude and Longitude
+
+The `Forest Fires` dataset store the latitude and longitude of the place where occurred the fire into variables `lat` e `lon` respectively. These values are in format of *DegreesºMinutes'Seconds"* and for the reason contain special characters `º`, `'`, `:` and `"`. Besides, there are wrong values into variables as dates between the coordinates and values with scientific notation `E-12`, `E-11` and `E-02`. A sample of these inconsistencies is provided in the tables below:
+
+```{r lat_lon_wrong, echo=FALSE}
+sample1 = ffires.raw %>% filter(str_detect(lat, 'º')) %>% select(lat, lon)
+sample2 = ffires.raw %>% filter(str_detect(lat, '1900-01-01')) %>% select(lat, lon)
+sample3 = ffires.raw %>% filter(str_detect(lat, "E-12")) %>% select(lat, lon)
+
+sample1[1,]
+sample2[1,]
+sample3[1,]
+
+rm(sample1, sample1, sample2)
+```
+
+A cleaning and transformation steps were perfomed on `lat` and `lon` variables to remove the special caracters and scientific notation. For the values wrongs where there is a date among the coordinates, it was performed an data imputation based on another observations that has the same `region`, `district`, `municipality` and `parish`. After the cleaning steps, the values were transformated from GPS coordinates to decimals coordinates in order to be able retrieve historical data from nearest weather stations using the [RNOAA](http://spatialecology.weebly.com/r-code--data/34) package 
+
+```{r clean_lat_lon, echo=FALSE}
+idx.lat.wrong = which(str_detect(ffires.raw$lat, '1900-01-01'))
+lat.wrong = ffires.raw[idx.lat.wrong,]
+for (idx in idx.lat.wrong) {
+  df_temp = ffires.raw[-idx.lat.wrong,] %>% 
+    filter(region == ffires.raw[idx,]$region, 
+           district == ffires.raw[idx,]$district,
+           municipality == ffires.raw[idx,]$municipality,
+           parish == ffires.raw[idx,]$parish)
+  ffires.raw$lat[idx] = df_temp$lat[1]
+  ffires.raw$lon[idx] = df_temp$lon[1]
+}
+vec_clean <- c("''"="", "E-12"="", "E-11"="", "E-02"="", ","=".", "º"=" ", "'"=" ", ":"=" ")
+ffires.raw$lat <- conv_unit(str_replace_all(str_trim(ffires.raw$lat), vec_clean), "deg_min_sec", "dec_deg")
+ffires.raw$lon <- conv_unit(str_replace_all(str_trim(ffires.raw$lon), vec_clean), "deg_min_sec", "dec_deg")
+# Workaround
+ffires.raw$lon[7511] <- conv_unit("8 34 21.5868000000013", "deg_min_sec", "dec_deg")
+rm(df_temp,vec_clean,idx.lat.wrong,lat.wrong)
+```
+
+The data imputation and transformation generated 8 NA's in `lat` and `lon` variables for parishes listed below:
+
+
+```{r echo=FALSE}
+ffires.raw %>% select(region, district, municipality, parish, lat, lon) %>% filter(is.na(lat))
+```
+
+In order to fixing this, the latitude and longitude values for these parishes were imputed directly from the localization data retrieved from the internet.
+
+
+```{r lat_lon_imputation, echo=FALSE}
+#Alentejo - Évora - Mora - Cabeção
+ffires.raw$lat[439] = 38.954167
+ffires.raw$lon[439] = -8.072778
+#Alentejo -	Évora - Montemor-o-Novo - Cortiçadas de Lavre
+ffires.raw$lat[1722] = 38.786577
+ffires.raw$lon[1722] = -8.432094
+#Alentejo - Évora - Montemor-o-Novo - Ciborro
+ffires.raw$lat[2633] = 38.800833
+ffires.raw$lon[2633] = -8.228056
+#Alentejo -	Évora -	Mourão - Granja
+ffires.raw$lat[3007] = 38.3 
+ffires.raw$lon[3007] = -7.255
+#Alentejo -	Évora -	Évora	- Horta das Figueiras
+ffires.raw$lat[3443] = 38.545
+ffires.raw$lon[3443] = -7.905556
+#Alentejo -	Évora - Montemor-o-Novo - Cortiçadas de Lavre
+ffires.raw$lat[3586] = 38.786577
+ffires.raw$lon[3586] = -8.432094
+#Alentejo - Évora - Estremoz - São Lourenço de Mamporcão	
+ffires.raw$lat[5284] = 38.890833
+ffires.raw$lon[5284] = -7.545833
+#	Alentejo - Évora - Mora - Brotas
+ffires.raw$lat[7228] = 38.873056
+ffires.raw$lon[7228] = -8.15
+```
+
+### District
+
+Mainland Portugalis is divided into 18 districts and the variable `district` from `Forest Fires` dataset refer the place where occurred the fires. As seen in table \@ref(tab:summary_data), this variable has 19 unique values, so there are some inconsistent data. The table below display the unique values for this variable:
+
+```{r echo=F}
+unique(ffires.raw$district)
+```
+
+As seen in table above, there are two references for the same district: *Viana do Castelo* and *Viana Do Castelo*. So a step of cleaning was performed into this variable values.
+
+```{r eval=F, echo=F}
+idx.dist.VC = which(ffires.raw$district == "Viana Do Castelo")
+for (idx in idx.dist.VC) {
+  ffires.raw[idx,]$district = "Viana do Castelo" 
+}
+```
+
+### First Intervention and Extinction
+
+The variables `firstInterv_date` and `firstInterv_hour` store the date and time that occured the the first intervention by autorities after the fire alert. As seem in table 4, these variables have a total of NA's values equals 214 and 215, respectively. In order to reduce these quantity,  a data imputation were performed based on values of `extinction_date` and `extinction_hour` assumption that if there are values for extinction date and time it because some intervention was realized. After data imputatio the quantity of NA's was reduced to 7 in both variables as can be seen below:
+
+```{r firstInterv_imputation, echo=FALSE}
+ffires.raw <- ffires.raw %>% rowwise() %>% mutate(firstInterv_date = if_else( is.na(firstInterv_date) && !is.na(extinction_date), extinction_date , firstInterv_date),
+                                                firstInterv_hour = if_else( is.na(firstInterv_hour) && !is.na(extinction_hour), extinction_hour , firstInterv_hour))
+```
+
+```{r summary_after_firstInterv_imputation, echo=FALSE}
+df_status(ffires.raw %>% select(firstInterv_date, firstInterv_hour, extinction_date, extinction_hour))
+```
+
+The remaining quantity of NA's values in `firstInterv_date`, `firstInterv_hour`, `extinction_date`, and `extinction_hour` represent 0.9% and 1.2% respectively of the total of observations. As these values are relatively low, these observations were removed from dataset.
+
+```{r echo=F}
+ffires.raw = ffires.raw %>% filter(!is.na(firstInterv_date))
+ffires.raw = ffires.raw %>% filter(!is.na(firstInterv_hour))
+ffires.raw = ffires.raw %>% filter(!is.na(extinction_date))
+ffires.raw = ffires.raw %>% filter(!is.na(extinction_hour))
+```
+
+### Alert Source {-}
+
+As can be seen in table below, the variable `alert_source` has 100% of values with NA's, so this variable were removed from dataset.
+
+```{r echo=F}
+df_status(ffires.raw$alert_source)
+ffires.raw = ffires.raw %>% select(-alert_source)
+```
+
+## Data Transformation
+
+In the `Forest Fires` dataset, the variables `region`, `district`, `municipality`, `parish`, `origin`, `cause_type` are with the data type as `<character>` when the appropriataded should be a `<factor>`. Thus, a step to transform these variables into the most appropriated data type was performed.
+
+```{r transform_factors, echo=FALSE}
+ffires.raw$region = as.factor(ffires.raw$region)
+ffires.raw$district = as.factor(ffires.raw$district)
+ffires.raw$municipality = as.factor(ffires.raw$municipality)
+ffires.raw$parish = as.factor(ffires.raw$parish)
+ffires.raw$origin = as.factor(ffires.raw$origin)
+ffires.raw$cause_type = as.factor(ffires.raw$cause_type)
+```
+
+Besides the variables aforementioned, others also were transformed. The variables `alert_date`, `alert_hour`, `firstInterv_date`, `firstInterv_hour`, `extinction_date`, and `extinction_hour` contains date and time data, and thus, these variables were appropriated merged and transformed in POSIXct object in order to able to handle it as a date. The variables `alert`, `firtsInterv` and `extinction` were created based on corresponding variables, and the ones were removed from the dataset. 
+
+```{r transform_date_time, eval=FALSE, include=FALSE}
+# ::: Not run because let a long time to finish
+ffires.raw = ffires.raw %>% rowwise() %>% 
+  mutate(alert = ymd_hms(str_c(alert_date, alert_hour, sep=" ")),
+         extinction = ymd_hms(str_c(extinction_date, extinction_hour, sep=" ")),
+         firstInterv = ymd_hms(str_c(firstInterv_date, firstInterv_hour, sep=" ")))
+
+ffires.raw = ffires.raw %>% select(-alert_date, -alert_hour, -extinction_date, -extinction_hour, -firstInterv_date, -firstInterv_hour)
+         
+ffires.raw=as_tibble(ffires.raw)
+save(ffires.transformed, file = "data/ffires.transformed.RData")
+```
+
+```{r load_ffires_transformed, echo=F}
+load("data/ffires.transformed.RData")
+ffires.raw = ffires.transformed
+rm(ffires.transformed)
+```
+
+## Feature Engineering
+
+### Weather Data {-}
+
+As additional information, let's use weather data in order to build features that can help the models obtain better accuracy. The weather data can be obtained from the National Oceanic and Atmospheric Administration (NOAA) Climate Data Sources using [RNOAA](http://spatialecology.weebly.com/r-code--data/34) package whicu provides free access to National Climatic Data Center's (NCDC) archive of global historical weather and climate data in addition to station history information. These data include quality controlled daily, monthly, seasonal, and yearly measurements of temperature, precipitation, wind, and degree days as well as radar data and 30-year Climate Normals. 
+
+For the propose this analysis, it was created 5 new features: `tavg`, `tavg15d`, `tmax`, `tmin`, and `prcp` based on the following weather measurements:
+
+
+Measurement  | Description
+-------------|-------------------------------------------------------------
+tavg         | the average temperature of day (degrees C)
+tavg15d      | the average temperature of the last 15 days (degrees C)
+tmax         | the maximum temperature of day (degrees C)
+tmin         | the minimum temperature od day (degrees C)
+prcp         | the precipitation (mm)
+
+
+In order to retrieve the weather data it was considered the alert date of fire. The sample of the first rows of created features it provided in table below:
+
+```{r get_weather_data, eval=FALSE, include=FALSE}
+load("data/station_data.Rdata")
+
+get_nearby_stations = function (df, measure){
+  nearby_stations = meteo_nearby_stations(lat_lon_df = df,
+                                          station_data = station_data, 
+                                          radius = 1000, 
+                                          var = measure,
+                                          year_min = 2014, year_max = 2015,
+                                          limit = 5)
+  return(nearby_stations)
+}
+
+ffires.raw = ffires.raw %>% mutate(tavg = 0, tavg15d = 0, tmax = 0, tmin = 0, prcp = 0)
+
+fires = distinct(ffires.raw, parish, lat, lon, alert)
+
+for (i in 1:dim(fires)[1]) {
+  fire = fires[i,]
+  idx = which(ffires.raw$parish == fire$parish & ffires.raw$lat == fire$lat & ffires.raw$lon == fire$lon & ffires.raw$alert == fire$alert)
+  df = data.frame(id=fire$parish, latitude=fire$lat, longitude=fire$lon, stringsAsFactors = F)
+  stations = get_nearby_stations(df, c("TAVG", "TMAX", "TMIN", "PRCP"))
+  
+  dt_alert = as.character(as.Date(fire$alert))
+  
+  # Set TAVG
+  for(j in 1:dim(stations[[1]])[1] ){
+    wd = ghcnd_search(stations[[1]]$id[j], var = "TAVG", date_min = dt_alert, date_max = dt_alert)
+    if(!is.null(wd$tavg) && nrow(wd$tavg)>0 && !is.na(wd$tavg$tavg) && wd$tavg$tavg > 0){
+      tavg = wd$tavg$tavg
+      ffires.raw[idx,]$tavg = tavg/10
+      break()
+    }
+  }
+  
+  dt_ini = as.character(as.Date(fire$alert) - ddays(15))
+ 
+  # Set TAVG15D
+  for(j in 1:dim(stations[[1]])[1] ){
+    wd = ghcnd_search(stations[[1]]$id[j], var = "TAVG", date_min = dt_ini, date_max = dt_alert)
+    if(!is.null(wd$tavg) && nrow(wd$tavg)>0){
+      tavg15d = mean(wd$tavg$tavg, na.rm = TRUE)
+      ffires.raw[idx,]$tavg15d = tavg15d/10
+      break()
+    }
+  }
+  
+  # Set TMAX
+  for(j in 1:dim(stations[[1]])[1] ){
+    wd = ghcnd_search(stations[[1]]$id[j], var = "TMAX", date_min = dt_alert, date_max = dt_alert)
+    if(!is.null(wd$tmax) && nrow(wd$tmax)>0 && !is.na(wd$tmax$tmax) && wd$tmax$tmax > 0){
+      tmax = wd$tmax$tmax
+      ffires.raw[idx,]$tmax = tmax/10
+      break()
+    }
+  }
+  
+  # Set TMIN
+  for(j in 1:dim(stations[[1]])[1] ){
+    wd = ghcnd_search(stations[[1]]$id[j], var = "TMIN", date_min = dt_alert, date_max = dt_alert)
+    if(!is.null(wd$tmin) && nrow(wd$tmin)>0 && !is.na(wd$tmin$tmin) && wd$tmin$tmin > 0){
+      tmin = wd$tmin$tmin
+      ffires.raw[idx,]$tmin = tmin/10
+      break()
+    }
+  }
+  
+  # Set PRCP
+  for(j in 1:dim(stations[[1]])[1] ){
+    wd = ghcnd_search(stations[[1]]$id[j], var = "PRCP", date_min = dt_alert, date_max = dt_alert)
+    if(!is.null(wd$prcp) && nrow(wd$prcp)>0 && !is.na(wd$prcp$prcp) && wd$prcp$prcp > 0){
+      prcp = wd$prcp$prcp
+      ffires.raw[idx,]$prcp = prcp/10
+      break()
+    }
+  }
+}
+rm(i, j, wd, fire, fires, idx, stations, df, dt_alert, dt_ini)
+
+#Imputation of value in tavg variable based on tmax and tmin
+ffires = ffires %>% rowwise() %>%  mutate(tavg = if_else(tavg == 0 & tmax != 0 & tmin != 0, (tmax+tmin)/2, tavg))
+
+#Imputation of value in tavg variable based on tavg15d
+ffires = ffires %>% rowwise() %>%  mutate(tavg = if_else(tavg == 0 & tavg15d != 0, tavg15d, tavg))
+
+#Imputation of value in tavg15d variable if NaN
+ffires = ffires %>% rowwise() %>%  mutate(tavg15d = if_else(is.nan(tavg15d), 0, tavg15d))
+
+#Imputation of value in tmax variable based on tavg and tmin
+ffires = ffires %>% rowwise() %>%  mutate(tmax = if_else(tmax == 0 & tavg != 0 & tmin != 0, (2*tavg)-tmin, tmax))
+
+#Imputation of value in tmin variable based on tavg and tmax
+ffires = ffires %>% rowwise() %>%  mutate(tmin = if_else(tmin == 0 & tavg != 0 & tmax != 0, (2*tavg)-tmax, tmin))
+
+save(ffires.weatherData, file = "data/ffires.weatherData.RData")
+```
+
+```{r load_ffires_weatherData, echo=F}
+load("data/ffires.weatherData.RData")
+ffires.raw = ffires.weatherData
+rm(ffires.weatherData)
+head(ffires.raw %>% select(alert, tavg, tavg15d, tmax, tmin, prcp))
+```
+
+After load weather data into `Forest Fire` dataset, some steps of data imputation were performed to reduce the quantity od NA's and zero values. The reasoning for imputation was calculate the value based on other variables. For instance, `tavg` variable with NA or zero value, check if there is values for `tmax` and `tmin` and calculate the average temperature. For `tmax` variable with NA or zero value, check if there is values for `tavg` and `tmin` and calculate the maximum temperature, and so forth. Below it provided the summary of the new features after the data imputation:
+
+```{r summary_weatherData, echo=F}
+df_status(ffires.raw %>% select(tavg, tavg15d, tmax, tmin, prcp))
+```
+
+### Based on Features {-}
+
+The variable `alert` provides relevant information for the goal of this analysis. The quantity of unique values for this variable is 7313. This quantity can represent noise for the predictive model. For this reason, it was created two new features based on it: `alert_month` and `alert_period`. The first one is a numeric variable with the month of a fire alert. The latter one is an ordinal feature with 4 values *Morning*, *Afternoon*, *Night*, *Dawn* with a slot of 6 hours each one. After creation of these new features, the `alert` variable was removed from dataset.
+
+Another new feature called `duration` was created based on `alert` and `extinction` variables. Its value is the elapsed time between fire alert and its extinction. We consider that information can be useful help to predict the fire cause type as rekindling.
+
+```{r feature_engenier_alert, echo=F}
+#Create feature: alert_month
+ffires.raw$alert_month = month(ffires.raw$alert, label = FALSE)
+
+#Create feature: alert_period
+ffires.raw$alert_period = if_else(between(hour(ffires.raw$alert),6,11),"Morning",if_else(between(hour(ffires.raw$alert),12,17),"Afternoon",if_else(between(hour(ffires.raw$alert),18,23),"Night", "Dawn")))
+
+#Create feature: duration
+ffires.raw = ffires.raw %>% rowwise() %>% mutate(duration = (extinction-alert)/60)
+
+ffires.raw = ffires.raw %>% select(-alert)
+
+ffires.raw$alert_month = as.factor(ffires.raw$alert_month)
+ffires.raw$alert_period = as.factor(ffires.raw$alert_period)
+ffires.raw$duration = as.numeric(ffires.raw$duration)
+
+ffires.raw = as_tibble(ffires.raw)
+```
+
+After this process of feature engineering the `Forest Fires` dataset now he has 24 variables as against 21 from the original dataset. A summary for the new dataset is shown the table below:
+
+```{r summary_ffires_full, echo=F}
+df_status(ffires.raw)
+``` 
+
+## Data Analysis
+
+Understanding the structure of the data, the distribution of the variables, and the relationships between them is fundamental to build a solid model.
+
+Based on the dataset we ploted some graphics that helped us to get some conclusions and showed a general notion about the problem of the forests fires.
+
+Figure \@ref(fig:month-ratings) depicts the bar graphic of the distribution of forests fires during 2015. The x-axis represents the months along the year 0f 2015 and the y-axis represents the total of fires that occurred by month.
+
+```{r month-ratings, echo = FALSE, fig.align= "center", fig.cap= "\\label{month-ratings}Barplot of the distribution of forests fires during 2015."}
+load("ffiresFull.Rdata")
+ggplot(ffires.full, aes(x = month(alert_date, label = T))) +
+  geom_bar(fill = "red") +
+  ggtitle("Distribution of forests fires across 2015") +
+  labs(x="Months", y="Total")
+```
+
+This graphic showed us that july and august are the months with the largest ocurrences and the period between march and september needs more atention. Probably we will consider the variable month as important to the analisys.
+
+### Region and District
+These two variables represents the areas of the occurrences and we can observe by summary that the variable region has a lot of NA´s (501) that corresponds to 6,67% of the total of lines. The distribution of the occurrences by region can be observed in the grafic \@ref(fig:region-ratings).
+The y-axis represents the regions and the x-axis represents the total of fires that occurred by region.
+
+```{r region-ratings, echo = FALSE, fig.align= "center", fig.cap= "\\label{region-ratings}Barplot of the distribution of forests fires by regions."}
+ffires.full %>%
+  group_by(region) %>%
+  count(region) %>% ggplot(., aes(x = reorder(region, n), y = n)) +  geom_col() + ggtitle("Distribution of forests fires by region") +
+  labs(x="Region", y="Total") + 
+  coord_flip()
+```
+
+Observing this grafic we saw that Entre Douro e Minho was the region with more forests fires and other regions like Centro, Lisboa and Norte were with minimum occurrences.
+
+The relationship between region, month and causes is represented on figure \@ref(fig:regmoncau-ratings). The x-axis includes the diferent regions, y-axis represents the months of ocurrences and the variable cause is showed by colours listed on the labels.
+
+```{r regmoncau-ratings,echo = FALSE, fig.align= "center", fig.cap= "\\label{regmoncau-ratings}Distribution of forests fires relating region, month and causes."}
+ggplot(ffires.full, aes(x = region, y = month(alert_date, label = T)))  + geom_point(aes(color = cause_type)) + ggtitle("Relationship between region and month") + labs(x="Region", y="Months")+ 
+  coord_flip()
+```
+
+Another important graphic is the figure \@ref(fig:district-ratings) that corresponds to the distribution of forests fires by district. The y-axis represents the districts and the x-axis represents the total of fires that occurred by region.
+
+```{r district-ratings, echo = FALSE, fig.align= "center", fig.cap= "\\label{district-ratings}Barplot of the distribution of forests fires by districts."}
+load("ffires.Rdata")
+ffires %>%
+  group_by(district) %>%
+  count(district) %>% ggplot(., aes(x = reorder(district, n), y = n)) +  geom_col() + ggtitle("Distribution of forests fires by district") +
+  labs(x="District", y="Total") + 
+  coord_flip()
+```
+
+This graphic indicates that Porto and Viana do Castelo were the districts with more forests fires.
+
+The relationship between district, month and causes is represented on figure \@ref(fig:dismoncau-ratings). The x-axis includes the diferent districts, y-axis represents the months of ocurrences and the variable cause is showed by colours listed on the labels.
+
+```{r dismoncau-ratings, echo = FALSE, fig.align= "center", fig.cap= "\\label{dismoncau-ratings}Distribution of forests fires relating district, month and causes."}
+ggplot(ffires.full, aes(x = district, y = month(alert_date, label = T))) + geom_point(aes(color = cause_type)) + ggtitle("Relationship between district, month and cause_type")+
+  labs(x="District", y="Months") + 
+  coord_flip()
+```
+
+
+### Origin
+Origin informs the reason that the fire started and apparently appears to be an important observation for evaluation.It can be observed in figure \@ref(fig:origin-ratings).
+
+On the x-axis are listed the diferent origins and on y-axis represents the total of fires that occurred.
+
+```{r origin-ratings, echo = FALSE, fig.align= "center", fig.cap= "\\label{origin-ratings}Barplot of the distribution of forests fires by origins."}
+ffires.full %>%
+  group_by(origin) %>%
+  count(origin) %>% ggplot(., aes(x = reorder(origin, n), y = n)) + geom_col(fill = "blue") + ggtitle("Distribution of forests fires by origin across 2015")+
+  labs(x="Origin", y="Total")
+```
+
+The firepit was the origin of the most forests fires comparing it with the other origins.
+
+### Cause type
+This is the variable to be predicted by the model that will be chosen.It shows the four causes of the occurrences: intentional, natural, negligent and rekindling. They can be observed in the graphic \@ref(fig:causes-ratings) below.
+On the x-axis are listed the diferent causes and on y-axis represents the total of fires that occurred.
+
+```{r causes-ratings,echo = FALSE, fig.align= "center", fig.cap= "\\label{causes-ratings}Barplot of the distribution of forests fires by causes."}
+ffires.full %>%
+  group_by(cause_type) %>%
+  count(cause_type) %>% ggplot(., aes(x = reorder(cause_type, n), y = n)) + geom_col(color = "black", fill = "light blue") + ggtitle("Distribution of causes of fires")+
+  labs(x="Causes of Fires", y="Total")
+```
+
+A thing that calls our attention is the difference between the number of fires that were caused by negligence and by natural causes. The number of forest fires caused intentionally were almost the half of the negligent causes  what is an alarmant number.
+
+### TAVG
+This variable is the average temperature of each day of the occurrences. It was included from the station datas and your variation is described in the graphic \@ref(fig:tavg-ratings). 
+
+```{r tavg-ratings,echo = FALSE, fig.align= "center", fig.cap= "\\label{tavg-ratings}Histogram of Average Temperature by occurrences"}
+ggplot(ffires.full) + 
+  geom_histogram(aes(x = tavg), color = "black", fill = "orange")+
+  labs(x="Tavg", y="Total")
+```
+
+The graphic \@ref(fig:tavg-ratings) shows us that the large number of occurrences happened when the average temperature was between 24º e 26º. 
+
+### PRCP
+
+This variable is the maximum precipitation volume of rain of each day of the occurrences. It was included from the station datas and your variation is described in the graphic \@ref(fig:prcp-ratings).
+
+```{r prcp-ratings,echo = FALSE, fig.align= "center", fig.cap= "\\label{tavg-ratings}Histogram of PRCP by occurrences"}
+ggplot(ffires.full) + 
+  geom_histogram(aes(x = prcp), color = "black", fill = "green")+
+  labs(x="Prcp", y="Total")
+```
+
+The graphic \@ref(fig:prcp-ratings) shows us that the large number of occurrences happened when the prcp was near to zero.
+
+## Dimensionality Reduction
+
+Dimensionality reduction consists of the process of reducing the number of features in a dataset in order to eliminate the noise and features redundancy and create a more compact projection of the data. After previous preprocessing steps performed, the `Forest Fires` dataset has now 24 variables and some of them are redundant or irrelevant to the context of this problem.
+
+The variables `region`, `district`, `municipality` and `parish` has a high correlation once that one is a subdivision of another. A set of parishes is part of a municipality. In turn, a set of municipalities is part of a district. Thus, as the variable `region` has a lot of number of NA, and the variables `municipality` and `parish` are subdivisions of districts, they are irrelevant/redundant for the context and they were removed from the dataset.
+
+The variables `village_veget_area` and `total_area` are redundants because contains a somatory of values of the variables `village_area`, `vegetation_area` and `farming_area`. Thus, they were removed from the dataset.
+
+The variables `lat` and `lon` were important to retrieve the weather data from the nearest station. Once these data were inserted into the dataset, these variables became irrelevant to the context and they were removed from the dataset.
+
+The variables `tmax` and `tmin` were important in order to performe data imputation into the `tavg` variable. After that they became irrelevant to the context and they were removed from the dataset.
+
+The variables `id`, `firstInterv`, and `extinction` were considered irrelevants to the context once their values dont't provide useful information that can help to predict cause of forest fire, thus, these variables were removed from the dataset.
+
+Thus, the dimensionality of the `Forest Fires` was reduced and has now 12 features considered relevants to the context. These variables are displyed below:
+
+```{r dim_reduction, echo=F}
+# Selection of relevant features (remove redundancy) ----
+ffires.raw = ffires.raw %>% select(district, origin, alert_month, alert_period, duration, village_area, vegetation_area, farming_area, tavg, tavg15d, prcp, cause_type)
+names(ffires.raw)
+```
+
+## Feature Selection
+
+Feature selection refers to techniques that select a subset of the most relevant features for a dataset. 
+
+Once made the dimensionality reduction, it needs to check which the previously selected variables are really relevant. For this, it was used the Recursive Feature Elimination (RFE), the most widely used wrapper-type feature selection algorithm.
+
+RFE is popular because it is easy to configure and use and because it is effective at selecting those features in a training set that are more or most relevant in predicting the target variable.
+
+There are two important configuration options when using RFE: the choice in the number of features to select and the choice of the algorithm used to help choose features.
+
+* `size`: a integer vector for the specific subset sizes that should be tested (which need not to include ncol(x))
+
+* `rfeControl`: a list of options that can be used to specify the model and the methods for prediction, ranking etc.
+
+In order to performe the feature selection, it was used the RFE algorithm implemented by [caret](https://topepo.github.io/caret/recursive-feature-elimination.html) package. The hyperparameters values used was`size=c(1:11)` that correspond all the predictors features and `rfeControl(functions=rfFuncs, method="repeatedcv", repeats=5)` that mean the Random Forest method was use with 5 rounds of 10-Fold Cross-Validation.
+
+```{r rfe_profile, eval=FALSE, include=FALSE}
+# Create train set and test set ----
+set.seed(123456)
+idx = createDataPartition(ffires.raw$cause_type, p = 0.7, list = FALSE)
+trainSet = ffires[ idx,] 
+testSet <- ffires[-idx,]
+
+# Recursive Feature Elimination -------------------------------------------------
+outcomeName <-'cause_type'
+predictors <- names(trainSet)[!names(trainSet) %in% outcomeName] 
+rfControl <- rfeControl(functions = rfFuncs, method = "repeatedcv", repeats = 5) 
+rfProfile <- rfe(trainSet[,predictors], trainSet[[outcomeName]], 
+                 sizes=c(1:11), rfeControl = rfControl) 
+
+save(rfProfile, file = "data/rfProfile.RData")
+
+rm(idx)
+```
+
+
+The result of execution of RFE algorithm it provided below:
+
+
+```{r rfe_profile_result, echo=F}
+load("data/rfProfile.RData")
+rfProfile
+```
+
+
+```{r rfe_profile_plot, echo=F}
+plot(rfProfile, type = c("g", "o"))
+```
+
+The variables selected were:
+
+```{r rfe_selected_variables,echo=F}
+predictors(rfProfile)
+```
+
+
+# Prediction Models
+
+Predictive modeling is a technique that uses mathematical and computational methods to predict an event or result. The model is used to predict a result in some future state or moment based on changes in model inputs. The model parameters help to explain how the model inputs influence the result. 
+
+## `Caret` Package
+
+The R `caret` allows us to create several powerful predictive models using a simplified and consistent modeling syntax. There are more than 200 different models available in `caret` which allows us with very little change to set up the resampling approach and the parameter tuning. Behind the scenes, `caret` automatically resamples the models and conducts parameter tuning. This way it is possible to build and compare models with very little overhead.
+
+The `train()` function from `caret` was used to modeling all the predictive models needs for this studied. Besides one, the function `trainControl()` which allows to set up several aspects of the model, like the resampling method, it was defined withe `method=cv` and `number=10` what means that was used the 10-fold cross-validation for all the predictive models created.
+
+```{r train_control, echo=T}
+ctrl <- trainControl(method = "cv", number = 10, savePredictions = "final", classProbs = T)
+```
+
+### Data Splitting
+
+As a result of the data preparation and preprocessing, the forest fires dataset final has now 7502  observations. In order to build the predictive models, it was split into training and test sets where the first one containing 70% of the data, or precisely 5253 observations, and the second one containing 30% of the data corresponding to 2249 observations. The training of models was performed using the training set and the test set was used to assess the performance of them.
+
+```{r split_data, echo=F}
+set.seed(123456)
+idx = createDataPartition(ffires$cause_type, p = 0.7, list = FALSE)
+trainSet = ffires[ idx,] 
+testSet = ffires[-idx,]
+rm(idx)
+```
+
+## Distance-based Approach
+
+Distance-based algorithms are machine learning algorithms that classify queries by computing distances between these queries and a number of internally stored exemplars. Exemplars that are closest to the query have the largest in uence on the classification assigned to the query. Two speci c distance-based algorithms, the nearest neighbor algorithm and the nearest-hyperrectangle algorithm, are studied in detail. It is shown that the k-nearest neighbor algorithm (kNN)
+
+(Citeable URL: https://ir.library.oregonstate.edu/concern/graduate_thesis_or_dissertations/zw12z7835)
+
+
+### K-Nearest Neighbor
+
+It is an instance-based learning algorithm: it learns by analogy that is, they are based on the notion of similarity between cases. The K-nearest neighbors (KNN) algorithm uses 'resource similarity' to predict the values of new data points, which further means that the new data point will receive a value based on how close it corresponds to the points in the training set.
+
+
+```{r knn_model, eval=FALSE, echo=T, include=FALSE}
+knnModel <- train(cause_type ~ ., data = trainSet, method = "kknn", trControl = ctrl)
+```
+
+The package caret was used to create this model with the method "kknn".
+The tunning parameters used for the model were kmax = 9, distance = 2 and kernel = optimal and the accuracy reached 58.92%. 
+
+```{r knn_results, echo=F}
+load("models/knnModel.RData")
+knnModel
+```
+
+The confusion matrix is displayed below: 
+
+```{r knn_cm, echo=F}
+confusionMatrix(knnModel)
+```
+
+Performance: the ROC curve was plotted below and shows the relationship between sensitivity and specificity. Classifiers that provide curves closer to the upper left corner have the corresponding area under the larger curves (AUCs) and indicate better performance.Multi-class area under the curve: 73.82%
+
+```{r knn_performance, echo=F}
+#Make predictions
+#knnPredict = predict(knnModel, testSet)
+# Model accuracy
+#mean(knnPredict == testSet$cause_type)
+
+# Make predictions
+knnPredict = predict(knnModel, testSet, type = "prob")
+
+par(mfrow=c(2,3))
+knnMultiRoc = multiclass.roc(testSet$cause_type, knnPredict, percent = T, plot = T, print.auc = T)
+auc(knnMultiRoc)
+```
+
+## Probabilistic Approach
+Discriminant analysis is used to predict the probability of belonging to a given class (or category) based on one or multiple predictor variables. It works with continuous and/or categorical predictor variables.
+
+Compared to logistic regression, the discriminant analysis is more suitable for predicting the category of an observation in the situation where the outcome variable contains more than two classes. Additionally, it’s more stable than the logistic regression for multi-class classification problems.
+
+### Naive Bayes
+According to Bayes' theorem, it is possible to find the probability that a certain event will occur, given the probability of another event that has already occurred. Naive Bayes is a particular class of Bayesian classifiers that predicts the probability that a case belongs to a certain class. Due to its simplicity and high predictive power, it is one of the most used algorithms. This algorithm assumes that there is no dependency relationship between the attributes. However, this is not always possible. The algorithm reads the database and builds a probability table.In Bayesian classification, the main interest is to find the posterior probabilities, the probability of a label given some observed features.
+
+```{r nb_model, eval=FALSE, echo=T, include=T}
+nbModel <- train(cause_type ~ ., data = trainSet, method = "naive_bayes", trControl = ctrl)
+```
+
+The package caret was used to create this model with the method "naive_bayes".
+The tunning parameters used for the model were laplace = 0, usekernel = TRUE and adjust = 1 and the accuracy reached 56.06%.
+
+```{r nb_results, echo=F}
+load("models/nbModel.RData")
+nbModel
+```
+
+The confusion matrix is displayed below:
+
+```{r nb_confusion_matrix, echo=F}
+confusionMatrix(nbModel)
+```
+
+the ROC curve was plotted below and shows the relationship between sensitivity and specificity. Classifiers that provide curves closer to the upper left corner have the corresponding area under the larger curves (AUCs) and indicate better performance. Multi-class area under the curve: 72.85%
+
+```{r nb_performance, echo=F}
+# Make predictions
+nbPredict = predict(nbModel, testSet, type = "prob")
+par(mfrow=c(2,3))
+nbMultiRoc = multiclass.roc(testSet$cause_type, nbPredict, percent = T, plot = T, print.auc = T)
+auc(nbMultiRoc)
+```
+
+### Logistic Regression
+
+```{r lr_model, eval=FALSE, echo=T, include=FALSE}
+lrModel <- train(cause_type ~ ., data = trainSet, method = "multinom", trControl = ctrl,)
+```
+
+The package caret was used to create this model with the method "multinom".
+The tunning parameter used for the model was decay = 0.1 and the accuracy reached 62.74%.
+
+```{r lr_results, echo=F}
+load("models/lrModel.RData")
+lrModel
+```
+
+The confusion matrix is displayed below:
+
+```{r lr_cm, echo=F}
+confusionMatrix(lrModel)
+```
+
+the ROC curve was plotted below and shows the relationship between sensitivity and specificity. Classifiers that provide curves closer to the upper left corner have the corresponding area under the larger curves (AUCs) and indicate better performance. Multi-class area under the curve: 81.1%
+
+```{r lr_performance, echo=F}
+#Make predictions
+#lrPredict = predict(lrModel, testSet)
+# Model accuracy
+#mean(knnPredict == testSet$cause_type)
+
+# Make predictions
+lrPredict = predict(lrModel, testSet, type = "prob")
+
+par(mfrow=c(2,3))
+lrMultiRoc = multiclass.roc(testSet$cause_type, lrPredict, percent = T, plot = T, print.auc = T)
+auc(lrMultiRoc)
+```
+
+## Mathematical Formulas
+
+### Linear Discriminants Analisys (LDA)
+Linear discriminant analysis (LDA): Uses linear combinations of predictors to predict the class of a given observation. Assumes that the predictor variables (p) are normally distributed and the classes have identical variances (for univariate analysis, p = 1) or identical covariance matrices (for multivariate analysis, p > 1).
+
+The LDA algorithm starts by finding directions that maximize the separation between classes, then use these directions to predict the class of individuals. These directions, called linear discriminants, are a linear combinations of predictor variables.
+
+LDA assumes that predictors are normally distributed (Gaussian distribution) and that the different classes have class-specific means and equal variance/covariance.
+
+Before performing LDA, consider:
+
+Inspecting the univariate distributions of each variable and make sure that they are normally distribute. If not, you can transform them using log and root for exponential distributions and Box-Cox for skewed distributions.
+removing outliers from your data and standardize the variables to make their scale comparable.
+The linear discriminant analysis can be easily computed using the function lda() [MASS package].
+
+```{r lda_model, eval=FALSE, echo=T, include=FALSE}
+ldaModel <- train(cause_type ~ ., data = trainSet, method = "lda", trControl = ctrl)
+```
+
+The package caret was used to create this model with the method "lda".
+The accuracy reached 61.98%.
+
+```{r lda_results, echo=F}
+load("models/ldaModel.RData")
+ldaModel
+```
+
+The confusion matrix is displayed below: 
+
+```{r lda_cm, echo=F}
+confusionMatrix(ldaModel)
+```
+
+the ROC curve was plotted below and shows the relationship between sensitivity and specificity. Classifiers that provide curves closer to the upper left corner have the corresponding area under the larger curves (AUCs) and indicate better performance. Multi-class area under the curve: 81.05%
+
+```{r lda_performance, echo=F}
+#Make predictions
+#ldaPredict = predict(ldaModel, testSet)
+# Model accuracy
+#mean(knnPredict == testSet$cause_type)
+
+# Make predictions
+ldaPredict = predict(ldaModel, testSet, type = "prob")
+
+par(mfrow=c(2,3))
+ldaMultiRoc = multiclass.roc(testSet$cause_type, ldaPredict, percent = T, plot = T, print.auc = T)
+auc(ldaMultiRoc)
+```
+
+### Penalized Discriminants Analisys
+
+Penalized logistic regression imposes a penalty to the logistic model for having too many variables. This results in shrinking the coefficients of the less contributive variables toward zero. This is also known as regularization.
+
+The most commonly used penalized regression include:
+
+ridge regression: variables with minor contribution have their coefficients close to zero. However, all the variables are incorporated in the model. This is useful when all variables need to be incorporated in the model according to domain knowledge.
+lasso regression: the coefficients of some less contributive variables are forced to be exactly zero. Only the most significant variables are kept in the final model.
+elastic net regression: the combination of ridge and lasso regression. It shrinks some coefficients toward zero (like ridge regression) and set some coefficients to exactly zero (like lasso regression).
+
+```{r pda_model, eval=FALSE, echo=T, include=FALSE}
+pdaModel <- train(cause_type ~ ., data = trainSet, method = "pda", trControl = ctrl)
+```
+
+
+The package caret was used to create this model with the method "pda".
+The tunning parameter used for the model lambda = 0.1 and the accuracy reached 62.04%.
+
+```{r pda_results, echo=F}
+load("models/pdaModel.RData")
+pdaModel
+```
+
+
+The confusion matrix is displayed below:
+
+```{r pda_confusion_matrix, echo=F}
+confusionMatrix(pdaModel)
+```
+
+the ROC curve was plotted below and shows the relationship between sensitivity and specificity. Classifiers that provide curves closer to the upper left corner have the corresponding area under the larger curves (AUCs) and indicate better performance. Multi-class area under the curve: 81.05%
+
+```{r pda_performance, echo=F}
+# Make predictions
+pdaPredict = predict(pdaModel, testSet, type = "prob")
+par(mfrow=c(2,3))
+pdaMultiRoc = multiclass.roc(testSet$cause_type, pdaPredict, percent = T, plot = T, print.auc = T)
+auc(pdaMultiRoc)
+```
+
+## Logical Approaches
+
+### Decision Trees
+The Decision Tree classification method works as a tree-shaped flowchart, where each node indicates a test done on a value. The connections between the nodes represent the possible values of the upper node test, and the leaves indicate the class to which the record belongs. After the decision tree is assembled, to classify a new record, just follow the flow in the tree starting at the root node until reaching a leaf. Due to the structure they form, decision trees can be converted into Classification Rules.
+
+```{r tree_model, eval=FALSE, echo=T, include=FALSE}
+treeModel <- train(cause_type ~ ., data = trainSet, method = "rpart", trControl = ctrl)
+```
+
+
+The package caret was used to create this model with the method "rpart".
+The final value used for the model was cp = 0.006843456. and the accuracy reached 61.49%.
+
+```{r tree_results, echo=F}
+load("models/treeModel.RData")
+treeModel
+```
+
+The confusion matrix is displayed below:
+
+```{r tree_confusion_matrix, echo=F}
+confusionMatrix(treeModel)
+```
+
+the ROC curve was plotted below and shows the relationship between sensitivity and specificity. Classifiers that provide curves closer to the upper left corner have the corresponding area under the larger curves (AUCs) and indicate better performance. Multi-class area under the curve: 67.61%
+
+```{r tree_performance, echo=F}
+# Make predictions
+treePredict = predict(treeModel, testSet, type = "prob")
+par(mfrow=c(2,3))
+treeMultiRoc = multiclass.roc(testSet$cause_type, treePredict, percent = T, plot = T, print.auc = T)
+auc(treeMultiRoc)
+
+#Plot tree
+prp(treeModel$finalModel, box.palette = "Reds", tweak = 1.2)
+```
+
+### Tree Bag
+
+Bagging (Bootstrap Aggregation) is used when our goal is to reduce the variance of a decision tree. Here idea is to create several subsets of data from training sample chosen randomly with replacement. Now, each collection of subset data is used to train their decision trees.
+
+```{r tb_model, eval=FALSE, echo=T, include=FALSE}
+tbModel <- train(cause_type ~ ., data = trainSet, method = "treebag", trControl = ctrl)
+```
+
+
+The package caret was used to create this model with the method "treebag".
+The accuracy reached 61.47%.
+
+```{r tb_results, echo=F}
+load("models/tbModel.RData")
+tbModel
+```
+
+The confusion matrix is displayed below:
+
+```{r tb_confusion_matrix, echo=F}
+confusionMatrix(tbModel)
+```
+
+the ROC curve was plotted below and shows the relationship between sensitivity and specificity. Classifiers that provide curves closer to the upper left corner have the corresponding area under the larger curves (AUCs) and indicate better performance. Multi-class area under the curve: 74.79%
+
+```{r tb_performance, echo=F}
+# Make predictions
+tbPredict = predict(tbModel, testSet, type = "prob")
+par(mfrow=c(2,3))
+tbMultiRoc = multiclass.roc(testSet$cause_type, tbPredict, percent = T, plot = T, print.auc = T)
+auc(tbMultiRoc)
+```
+## Optimization Approaches
+
+### Neural Networks
+A neural network is an adaptive system that learns using interconnected nodes or neurons in a layered structure that resembles the human brain. A neural network can learn from the data - so it can be trained to recognize patterns, classify data and predict future events.
+
+A neural network divides the input into layers of abstraction. He can be trained using many examples to recognize patterns in speech or images, for example, just like the human brain does. Their behavior is defined by the way their individual elements are connected and the strength, or weights, of those connections. These weights are automatically adjusted during training according to a specified learning rule until the artificial neural network performs the desired task correctly.
+
+```{r nn_model, eval=FALSE, echo=T, include=FALSE}
+nnModel <- train(cause_type ~ ., data = trainSet, method = "nnet", trControl = ctrl)
+```
+
+The package caret was used to create this model with the method "nnet".
+The tunning parameters used for the model were size = 3 and decay = 0.1. and the accuracy reached was 60.69%.
+
+```{r nn_results, echo=F}
+load("models/nnModel.RData")
+nnModel
+```
+
+The confusion matrix is displayed below:
+
+```{r nn_cm, echo=F}
+confusionMatrix(nnModel)
+```
+
+the ROC curve was plotted below and shows the relationship between sensitivity and specificity. Classifiers that provide curves closer to the upper left corner have the corresponding area under the larger curves (AUCs) and indicate better performance. Multi-class area under the curve: 74.01%
+
+```{r nn_performance, echo=F}
+#Make predictions
+#nnPredict = predict(nnModel, testSet)
+# Model accuracy
+#mean(knnPredict == testSet$cause_type)
+
+# Make predictions
+nnPredict = predict(nnModel, testSet, type = "prob")
+
+par(mfrow=c(2,3))
+nnMultiRoc = multiclass.roc(testSet$cause_type, nnPredict, percent = T, plot = T, print.auc = T)
+auc(nnMultiRoc)
+```
+
+### SVM
+It is used for both classification and prediction tasks. It consists of separating classes that can be separated by a straight line, called linearly separated classes. The model tries to trace the separation based on the best distance between the closest points. There are variations of SVM, such as the Kernell trick, which allows applying SVM to a set of nonlinearly separable data. Support vector machines for binary or multiclass classification.
+
+### Linear {-}
+
+It is an extremely fast machine learning algorithm for solving multiclass classification problems from ultra large data sets that implements a cutting plane algorithm for designing a linear support vector machine.
+
+```{r svm_lin_model, eval=FALSE, include=FALSE}
+svmLinModel <- train(cause_type ~ ., data = trainSet, method = "svmLinear2", trControl = ctrl)
+```
+
+
+The package caret was used to create this model with the method "svmLinear2".
+The tunning parameter used for the model was cost = 1 and the accuracy reached was 60.92%.
+
+```{r svm_lin_results, echo=F}
+load("models/svmLinModel.RData")
+svmLinModel
+```
+
+The confusion matrix is displayed below:
+
+```{r svm_lin_confusion_matrix, echo=F}
+confusionMatrix(svmLinModel)
+```
+
+the ROC curve was plotted below and shows the relationship between sensitivity and specificity. Classifiers that provide curves closer to the upper left corner have the corresponding area under the larger curves (AUCs) and indicate better performance. Multi-class area under the curve: 78.36%
+
+```{r svm_lin_performance, echo=F}
+# Make predictions
+svmLinPredict = predict(svmLinModel, testSet, type = "prob")
+par(mfrow=c(2,3))
+svmLinMultiRoc = multiclass.roc(testSet$cause_type, svmLinPredict, percent = T, plot = T, print.auc = T)
+auc(svmLinMultiRoc)
+```
+
+### Radial {-}
+
+Radial kernel support vector machine is a good approch when the data is not linearly separable.The idea behind generating non linear decision boundaries is that we need to do some non linear transformations on the features which transforms them to a higher dimention space.We do this non linear transformation using the Kernel trick.
+
+```{r svm_rad_model, eval=FALSE, include=FALSE}
+svmRadModel <- train(cause_type ~ ., data = trainSet, method = "svmRadial", trControl = ctrl)
+#save(svmRadModel, file = "models/svmRadModel.RData")
+```
+
+
+The package caret was used to create this model with the method "svmRadial".
+The tunning parameters used for the model were sigma = 0.01788098 and C = 0.5. and the accuracy reached was 58.16%.
+
+```{r svm_rad_results, echo=F}
+load("models/svmRadModel.RData")
+svmRadModel
+```
+
+The confusion matrix is displayed below:
+
+```{r svm_rad_confusion_matrix, echo=F}
+confusionMatrix(svmRadModel)
+```
+
+the ROC curve was plotted below and shows the relationship between sensitivity and specificity. Classifiers that provide curves closer to the upper left corner have the corresponding area under the larger curves (AUCs) and indicate better performance.Multi-class area under the curve: 73.47%
+
+```{r svm_rad_performance, echo=F}
+# Make predictions
+svmRadPredict = predict(svmRadModel, testSet, type = "prob")
+par(mfrow=c(2,3))
+svmRadMultiRoc = multiclass.roc(testSet$cause_type, svmRadPredict, percent = T, plot = T, print.auc = T)
+auc(svmRadMultiRoc)
+```
+
+### Polinomial {-}
+
+The polynomial kernel is a kernel function commonly used with support vector machines (SVMs) and other kernelized models, that represents the similarity of training samples in a feature space over polynomials of the original variables, allowing learning of non-linear models. Intuitively, the polynomial kernel looks not only at the given features of input samples to determine their similarity, but also combinations of these. In the context of regression analysis, such combinations are known as interaction features.
+
+```{r svm_pol_model, eval=FALSE, include=FALSE}
+svmPolModel <- train(cause_type ~ ., data = trainSet, method = "svmPoly", trControl = ctrl)
+#save(svmPolModel, file = "models/svmPolModel.RData")
+```
+
+
+The package caret was used to create this model with the method "svmPoly".
+The tunning parameters used for the model were degree = 3, scale = 0.01 and C = 0.25 and the accuracy reached was 56.18%.
+
+```{r svm_pol_results, echo=F}
+load("models/svmPolModel.RData")
+svmPolModel
+```
+
+The confusion matrix is displayed below:
+
+```{r svm_pol_confusion_matrix, echo=F}
+confusionMatrix(svmPolModel)
+```
+
+the ROC curve was plotted below and shows the relationship between sensitivity and specificity. Classifiers that provide curves closer to the upper left corner have the corresponding area under the larger curves (AUCs) and indicate better performance. Multi-class area under the curve: 73.8%
+
+```{r svm_pol_performance, echo=F}
+# Make predictions
+svmPolPredict = predict(svmPolModel, testSet, type = "prob")
+par(mfrow=c(2,3))
+svmPolMultiRoc = multiclass.roc(testSet$cause_type, svmPolPredict, percent = T, plot = T, print.auc = T)
+auc(svmPolMultiRoc)
+```
+
+## Ensemble Approaches
+
+The ensemble methods use multiple learning algorithms to obtain better predictive performance than could be obtained from any of the constituent learning algorithms alone.
+
+### Random Forests
+Random forest is a supervised learning algorithm which is used mainly used for classification problems.  This algorithm creates decision trees on data samples and then gets the prediction from each of them and finally selects the best solution by means of voting. It gets a random sample with replacement from the training set, select some features at random and reduce dimensionality of the set, accordingly and train a tree model without pruning. It predicts the class obtained by majority vote averaging the output of each tree.
+
+```{r rf_model, eval=FALSE, include=FALSE}
+rfModel <- train(cause_type ~ ., data = trainSet, method = "rf", trControl = ctrl)
+#save(rfModel, file = "models/rfModel.RData")
+```
+
+
+The package caret was used to create this model with the method "rf".
+The final value used for the model was mtry = 22 and the accuracy reached was 63.30%.
+
+
+```{r rf_results, echo=F}
+load("models/rfModel.RData")
+rfModel
+```
+
+The confusion matrix is displayed below:
+
+```{r rf_confusion_matrix, echo=F}
+confusionMatrix(rfModel)
+```
+
+the ROC curve was plotted below and shows the relationship between sensitivity and specificity. Classifiers that provide curves closer to the upper left corner have the corresponding area under the larger curves (AUCs) and indicate better performance. Multi-class area under the curve: 79.6%
+
+```{r rf_performance, echo=F}
+# Make predictions
+rfPredict = predict(rfModel, testSet, type = "prob")
+par(mfrow=c(2,3))
+rfMultiRoc = multiclass.roc(testSet$cause_type, rfPredict, percent = T, plot = T, print.auc = T)
+auc(rfMultiRoc)
+```
+
+### XGBoost
+
+XGBoost is an optimized distributed gradient boosting system designed to be highly efficient, flexible and portable. It implements machine learning algorithms under the Gradient Boosting framework. XGBoost provides a parallel tree boosting(also known as GBDT, GBM).
+
+```{r xgb_model, eval=FALSE, include=FALSE}
+xgbModel <- train(cause_type ~ ., data = trainSet, method = "xgbTree", trControl = ctrl)
+#save(xgbModel, file = "models/xgbModel.RData")
+```
+
+The package caret was used to create this model with the method "xgbTree".
+The tunning parameter used for the model was  gamma = 0 and the accuracy reached was 64.95%.
+
+```{r xgb_results, echo=F}
+load("models/xgbModel.RData")
+xgbModel
+```
+
+The confusion matrix is displayed below:
+
+```{r xgb_confusion_matrix, echo=F}
+confusionMatrix(xgbModel)
+```
+
+the ROC curve was plotted below and shows the relationship between sensitivity and specificity. Classifiers that provide curves closer to the upper left corner have the corresponding area under the larger curves (AUCs) and indicate better performance. Multi-class area under the curve: 83.11%
+
+```{r xgb_performance, echo=F}
+# Make predictions
+xgbPredict = predict(xgbModel, testSet, type = "prob")
+par(mfrow=c(2,3))
+xgbMultiRoc = multiclass.roc(testSet$cause_type, xgbPredict, percent = T, plot = T, print.auc = T)
+auc(xgbMultiRoc)
+```
+
+## Models Evaluations
+
+The predictive models performed previous were evalutated based on the accuracy measurement that calculate the proportion of the total number of predictions that were correct. In order to evaluate the performace of models it was used the `DALEX` R package.
+
+DALEX contains a set of tools that help to provide *D*escriptive m*A*chine Learning *EX*planations ranging from global to local interpretability methods. In particular, it makes comparing performance across multiple models convenient.
+
+Below can be a rank of the model performance by accuracy:
+
+```{r resample_models, eval=FALSE, include=FALSE}
+rs <- resamples(list("KNN" = knnModel,
+                     "NB" = nbModel,
+                     "LR" = lrModel,
+                     "LDA" = ldaModel,
+                     "PDA" = pdaModel,
+                     "DTree" = treeModel, 
+                     "TBag" = tbModel,
+                     "NN" = nnModel,
+                     "SVM(Lin)" = svmLinModel,
+                     "SVM(Pol)" = svmPolModel,
+                     "SVM(Rad)" = svmRadModel,
+                     "RF" = rfModel, 
+                     "XGB" = xgbModel)) 
+                     
+summary(rs)
+```
+
+
+```{r eval_models, eval=FALSE, include=FALSE}
+predictors = testSet[,-11]
+outcome = testSet$cause_type
+
+explainer_knn <- explain(rfModel, predictors, outcome, label = "K-Nearest Neighbors")
+explainer_nb  <- explain(nbModel, predictors, outcome, label = "Naive Bayes")
+explainer_lr <- explain(lrModel, predictors, outcome, label = "Logistic Regression")
+explainer_lda <- explain(ldaModel, predictors, outcome, label = "Linear Discriminants")
+explainer_pda <- explain(pdaModel, predictors, outcome, label = "Penalized Discriminants")
+explainer_tree <- explain(treeModel, predictors, outcome, label = "Decision Tree")
+explainer_tb <- explain(tbModel, predictors, outcome, label = "Tree Bag")
+explainer_nn <- explain(nnModel, predictors, outcome, label = "Neural Networks")
+explainer_svmLin <- explain(svmLinModel, predictors, outcome, label = "SVM Linear")
+explainer_svmPol <- explain(svmPolModel, predictors, outcome, label = "SVM Polynomyal")
+explainer_svmRad <- explain(svmRadModel, predictors, outcome, label = "SVM Radial")
+explainer_rf <- explain(rfModel, predictors, outcome, label = "Random Forest")
+explainer_xgb <- explain(xgbModel, predictors, outcome, label = "XGBoost")
+
+eva_knn = model_performance(explainer_knn)
+eva_nb = model_performance(explainer_nb)
+eva_lr = model_performance(explainer_lr)
+eva_lda = model_performance(explainer_lda)
+eva_pda = model_performance(explainer_pda)
+eva_tree = model_performance(explainer_tree)
+eva_tb = model_performance(explainer_tb)
+eva_nn = model_performance(explainer_nn)
+eva_svmLin = model_performance(explainer_svmLin)
+eva_svmPol = model_performance(explainer_svmPol)
+eva_svmRad = model_performance(explainer_svmRad)
+eva_rf = model_performance(explainer_rf)
+eva_xgb = model_performance(explainer_xgb)
+```
+
+
+```{r plot_eval_models, echo=F}
+load("results/eva_knn.RData")
+load("results/eva_nb.RData")
+load("results/eva_lr.RData")
+load("results/eva_lda.RData")
+load("results/eva_pda.RData")
+load("results/eva_tree.RData")
+load("results/eva_tb.RData")
+load("results/eva_nn.RData")
+load("results/eva_svmLin.RData")
+load("results/eva_svmPol.RData")
+load("results/eva_svmRad.RData")
+load("results/eva_rf.RData")
+load("results/eva_xgb.RData")
+
+
+models = c("K-Nearest Neighbors", 
+           "Naive Bayes",
+           "Logistic Regression", 
+           "Linear Discriminants", 
+           "Penalized Discriminants", 
+           "Decision Tree",
+           "Tree Bag",
+           "Neural Networks",
+           "SVM Linear",
+           "SVM Polynomyal",
+           "SVM Radial",
+           "Random Forest",
+           "XGBoost")
+
+accuracys = c(round(eva_knn$measures$accuracy*100,2),
+              round(eva_nb$measures$accuracy*100,2),
+              round(eva_lr$measures$accuracy*100,2),
+              round(eva_lda$measures$accuracy*100,2),
+              round(eva_pda$measures$accuracy*100,2),
+              round(eva_tree$measures$accuracy*100,2),
+              round(eva_tb$measures$accuracy*100,2),
+              round(eva_nn$measures$accuracy*100,2),
+              round(eva_svmLin$measures$accuracy*100,2),
+              round(eva_svmPol$measures$accuracy*100,2),
+              round(eva_svmRad$measures$accuracy*100,2),
+              round(eva_rf$measures$accuracy*100,2),
+              round(eva_xgb$measures$accuracy*100,2))
+
+models_acc = data.frame(model=models, accuracy=accuracys)
+
+ggplot(models_acc, aes(x=reorder(model, accuracy), y=accuracy, color=accuracy)) + 
+  geom_bar(stat="identity", color='skyblue',fill='steelblue', width = 0.7) +
+  geom_text(aes(label=accuracy), vjust=0.4, hjust=1.5, color="white", size=3.5) +
+  xlab("Model") + ylab("Accuracy") +
+  ggtitle("Rank of Model Performance by Accuracy (%)") +
+  theme_minimal() + 
+  coord_flip()
+
+#plot(eva_knn, eva_nb, eva_lr, eva_lda, eva_pda, eva_tree, eva_tb, eva_nn, eva_svmLin, eva_svmPol, eva_svmRad, eva_rf, eva_xgb, geom = "boxplot", lossFunction = loss_accuracy())
+```
+
+# Conclusions
+
+In this work we start from an informed data set, we did some processes for cleaning, imputing and transforming the data. It was necessary to reduce the dimensionality of the data set and include some important variables that were taken from stations that record meteorological measurements and a selection of variables that would be important for the prediction of the cause of forest fires was carried out.
+We tested 13 models for the treatment of multiclass response. As a performance analysis, one of the main elements observed in the survey, was the accuracy, which is one of the determining characteristics in the evaluation of a predictor. Another information that we took into account was the plotting of the ROC curve that shows the relationship between sensitivity and sensitivity and, informs that the closer the curve gets to the upper left corner of the graph, presenting a larger area under it, it indicates the best performance for the model.
+In the analysis, we had models with performance ranging from 55.49% to 64.38%, with XGBoost as the best performance model and adding to this, the value of 83.11% achieved based on the ROC curve for the same model, exceeding the values of the others tested.
+The improvement of the data sets and the processing of it in an appropriate way guarantees a better result and the attempt to achieve a good performance.
+
+
+# References
+
+In addition to the references highlighted within the report, we got inspiration from other sources, such as:
+
+https://www.mathworks.com/?s_tid=gn_logo
+
+(Citeable URL: https://ir.library.oregonstate.edu/concern/graduate_thesis_or_dissertations/zw12z7835)
+
+PDA Model Reference:
+http://www.sthda.com/english/articles/36-classification-methods-essentials/149-penalized-logistic-regression-essentials-in-r-ridge-lasso-and-elastic-net/
+
+ Pang Ning, 2006, Introduction to Data Mining
